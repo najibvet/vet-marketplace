@@ -124,7 +124,6 @@
         <p class="font-bold text-amber-900">💳 Panduan Pembayaran:</p>
         <p class="text-amber-800">Silakan transfer biaya layanan ke rekening berikut:</p>
         <p class="font-mono font-bold text-gray-900">BCA: 1234567890 a.n. drh. Najib</p>
-        <p class="text-[10px] text-amber-700 italic">Lalu lampirkan screenshot bukti transfer di bawah ini.</p>
       </div>
 
       <form id="booking-form" onsubmit="submitBooking(event)" class="space-y-3">
@@ -145,12 +144,6 @@
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">Nama & Jenis Anabul / Pasien</label>
           <input type="text" id="pet-info" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: Miko (Kucing Persia)">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Unggah Bukti Transfer (Opsional)</label>
-          <input type="file" id="booking-proof" accept="image/*" class="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 border border-gray-200 rounded-xl p-1"/>
-          <p class="text-[10px] text-gray-400 mt-1">Format gambar (JPG/PNG).</p>
         </div>
 
         <div class="pt-2">
@@ -183,7 +176,7 @@
       e.preventDefault();
       
       const submitBtn = document.getElementById('submit-btn');
-      submitBtn.innerText = "Memproses Pesanan...";
+      submitBtn.innerText = "Menyimpan...";
       submitBtn.disabled = true;
 
       const serviceId = document.getElementById('selected-service-id').value;
@@ -192,35 +185,11 @@
       const clientName = document.getElementById('client-name').value;
       const clientPhone = document.getElementById('client-phone').value;
       const petInfo = document.getElementById('pet-info').value;
-      const proofFile = document.getElementById('booking-proof').files[0];
 
       const platformFee = Math.round(amount * 0.15);
-      let proofUrl = null;
 
-      // Coba upload gambar jika ada (tidak wajib agar tidak memblokir transaksi)
-      if (proofFile) {
-        try {
-          const fileExt = proofFile.name.split('.').pop();
-          const fileName = `proof_${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabaseClient.storage
-            .from('proofs')
-            .upload(fileName, proofFile);
-
-          if (!uploadError) {
-            const { data: urlData } = supabaseClient.storage
-              .from('proofs')
-              .getPublicUrl(fileName);
-            proofUrl = urlData.publicUrl;
-          }
-        } catch (errUpload) {
-          console.log("Upload skipped/failed safely:", errUpload);
-        }
-      }
-
-      // Simpan data transaksi ke database Supabase
       try {
-        const { error: insertError } = await supabaseClient.from('transactions').insert([
+        const { data, error: insertError } = await supabaseClient.from('transactions').insert([
           {
             service_id: serviceId,
             service_detail: serviceDetail,
@@ -230,31 +199,33 @@
             client_phone: clientPhone,
             pet_info: petInfo,
             payment_status: 'PENDING',
-            status: 'pending',
-            proof_url: proofUrl
+            status: 'pending'
           }
-        ]);
+        ]).select();
 
         if (insertError) {
-          console.error("Database insert warning:", insertError.message);
+          alert('GAGAL SIMPAN: ' + insertError.message);
+          submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
+          submitBtn.disabled = false;
+          return;
         }
-      } catch (errIns) {
-        console.error("Database catch warning:", errIns);
+
+        console.log("Berhasil tersimpan:", data);
+
+      } catch (err) {
+        alert('ERROR SISTEM: ' + err.message);
+        submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
+        submitBtn.disabled = false;
+        return;
       }
 
-      // Langsung arahkan ke WhatsApp Admin tanpa hambatan
+      // Arahkan ke WhatsApp Admin
       const adminPhone = '6281215667746';
-      let waText = `Halo Admin VetBook, saya ingin konfirmasi pembayaran booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n`;
-      
-      if (proofUrl) {
-        waText += `\n*📷 Link Bukti Transfer:* ${proofUrl}\n`;
-      }
-      
-      waText += `\nMohon verifikasi pembayarannya. Terima kasih.`;
+      let waText = `Halo Admin VetBook, saya ingin konfirmasi pembayaran booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n\nMohon verifikasi pembayarannya. Terima kasih.`;
       
       window.location.href = `https://wa.me/${adminPhone}?text=${encodeURIComponent(waText)}`;
     }
   </script>
 </body>
-            </html>
-            
+  </html>
+  
