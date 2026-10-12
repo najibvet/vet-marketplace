@@ -186,7 +186,7 @@
       }
 
       // 2. Format pesan WhatsApp otomatis untuk dokter/admin
-      const noAdminWhatsApp = '6281234567890'; // Ganti dengan nomor WhatsApp Anda nanti
+      const noAdminWhatsApp = '6281215667746'; // Ganti dengan nomor WhatsApp Anda nanti
       const pesan = `Halo ${activeDoctorName}, saya ingin mendaftarkan hewan peliharaan untuk konsultasi/layanan.%0A%0A*Detail Booking:*%0A- Layanan: ${activeService.title}%0A- Biaya: Rp ${activeService.price.toLocaleString('id-ID')}%0A- Nama Pemilik: ${ownerName}%0A- No. HP: ${ownerPhone}%0A- Nama Hewan: ${petInfo}%0A- Keluhan: ${complaint}%0A%0AMohon konfirmasinya, terima kasih!`;
 
       // 3. Arahkan ke WhatsApp
