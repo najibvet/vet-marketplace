@@ -14,9 +14,14 @@
       <h1 class="text-lg font-bold">🐾 VetBook Admin</h1>
       <span class="bg-teal-600 text-[10px] px-2.5 py-0.5 rounded-full font-mono uppercase">Control Center</span>
     </div>
-    <button onclick="loadTransactions()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
-      🔄 Refresh
-    </button>
+    <div class="flex items-center gap-2">
+      <a href="record.html" class="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1 border border-teal-500">
+        📋 Rekam Medis
+      </a>
+      <button onclick="loadTransactions()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
+        🔄 Refresh
+      </button>
+    </div>
   </header>
 
   <main class="max-w-4xl mx-auto p-4 space-y-6">
@@ -175,5 +180,4 @@
     loadTransactions();
   </script>
 </body>
-      </html>
-      
+</html>
