@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VetBook - Marketplace Dokter Hewan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 pb-10">
+
+  <header class="bg-teal-700 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
+    <h1 class="text-xl font-bold flex items-center gap-2">🐾 VetBook</h1>
+    <span class="bg-teal-800 text-xs px-2.5 py-1 rounded-full font-mono">v1.0 MVP</span>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-6">
+    <div>
+      <h2 class="text-lg font-bold text-teal-900">Pilih Dokter Hewan</h2>
+      <p class="text-xs text-gray-500">Direktori konsultasi & layanan medis hewan</p>
+    </div>
+
+    <div id="vets-container" class="space-y-4">
+      <div class="text-center py-8 text-gray-400 text-sm">Memuat data dokter...</div>
+    </div>
+  </main>
+
+  <script>
+    // MASUKKAN KREDENSIAL SUPABASE DARI CATATAN HP ANDA DI SINI:
+    const SUPABASE_URL = 'PASTE_PROJECT_URL_DARI_NOTES_HP';
+    const SUPABASE_KEY = 'PASTE_ANON_KEY_DARI_NOTES_HP';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadVetsData() {
+      const container = document.getElementById('vets-container');
+
+      const { data: vets, error } = await supabaseClient
+        .from('vets')
+        .select(`
+          id,
+          full_name,
+          title,
+          city,
+          avatar_url,
+          services (
+            id,
+            title,
+            price,
+            category
+          )
+        `);
+
+      if (error) {
+        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat data. Periksa kembali URL & Key Supabase Anda.</div>`;
+        return;
+      }
+
+      if (!vets || vets.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-6">Belum ada dokter terdaftar.</div>`;
+        return;
+      }
+
+      container.innerHTML = vets.map(vet => `
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+          <div class="flex items-center gap-4">
+            <img src="${vet.avatar_url || 'https://via.placeholder.com/100'}" class="w-16 h-16 rounded-full object-cover border-2 border-teal-500">
+            <div>
+              <h3 class="font-bold text-base text-gray-900">${vet.full_name}</h3>
+              <p class="text-xs text-teal-600 font-semibold">${vet.title}</p>
+              <p class="text-xs text-gray-400 mt-1">📍 ${vet.city}</p>
+            </div>
+          </div>
+
+          <hr class="border-gray-100">
+
+          <div class="space-y-2">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Layanan Tersedia</p>
+            ${
+              vet.services && vet.services.length > 0 
+              ? vet.services.map(svc => `
+                <div class="flex justify-between items-center bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                  <div>
+                    <p class="text-xs font-semibold text-gray-800">${svc.title}</p>
+                    <p class="text-xs font-bold text-teal-700">Rp ${Number(svc.price).toLocaleString('id-ID')}</p>
+                  </div>
+                  <button onclick="pilihLayanan('${svc.title}',${svc.price})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-teal-700">
+                    Pilih
+                  </button>
+                </div>
+              `).join('')
+              : `<p class="text-xs text-gray-400 italic">Belum ada layanan.</p>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function pilihLayanan(title, price) {
+      alert(`Anda memilih: ${title} (Rp ${price.toLocaleString('id-ID')})\n\nTahap selanjutnya: Integrasi pembayaran / checkout.`);
+    }
+
+    loadVetsData();
+  </script>
+</body>
+</html>
