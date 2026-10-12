@@ -7,30 +7,75 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800 pb-10">
+<body class="bg-gray-50 min-h-screen text-gray-800 pb-12">
 
   <header class="bg-teal-700 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
     <h1 class="text-xl font-bold flex items-center gap-2">🐾 VetBook</h1>
-    <span class="bg-teal-800 text-xs px-2.5 py-1 rounded-full font-mono">v1.0 MVP</span>
+    <span class="bg-teal-800 text-xs px-2.5 py-1 rounded-full font-mono">v1.1 Booking</span>
   </header>
 
   <main class="max-w-md mx-auto p-4 space-y-6">
-    <div>
-      <h2 class="text-lg font-bold text-teal-900">Pilih Dokter Hewan</h2>
-      <p class="text-xs text-gray-500">Direktori konsultasi & layanan medis hewan</p>
+    <!-- Bagian Direktori Dokter -->
+    <div id="section-catalog">
+      <div class="mb-4">
+        <h2 class="text-lg font-bold text-teal-900">Pilih Dokter Hewan</h2>
+        <p class="text-xs text-gray-500">Direktori konsultasi & layanan medis hewan</p>
+      </div>
+
+      <div id="vets-container" class="space-y-4">
+        <div class="text-center py-8 text-gray-400 text-sm">Memuat data dokter...</div>
+      </div>
     </div>
 
-    <div id="vets-container" class="space-y-4">
-      <div class="text-center py-8 text-gray-400 text-sm">Memuat data dokter...</div>
+    <!-- Bagian Form Booking (Awalnya Tersembunyi) -->
+    <div id="section-booking" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h2 class="text-base font-bold text-teal-900">Formulir Pendaftaran Pasien</h2>
+        <button onclick="batalBooking()" class="text-xs text-gray-400 hover:text-gray-600 font-medium">✕ Batal</button>
+      </div>
+
+      <div class="bg-teal-50 p-3 rounded-xl border border-teal-100 text-xs space-y-1">
+        <p class="text-gray-500 font-medium">Layanan yang Dipilih:</p>
+        <p id="selected-service-title" class="font-bold text-teal-900 text-sm">-</p>
+        <p id="selected-service-price" class="font-bold text-teal-700">-</p>
+      </div>
+
+      <form id="booking-form" onsubmit="kirimBooking(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Pemilik / Client</label>
+          <input type="text" id="owner-name" required placeholder="Contoh: Budi Santoso" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">No. WhatsApp / HP</label>
+          <input type="tel" id="owner-phone" required placeholder="Contoh: 081234567890" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Hewan & Jenis (Anabul)</label>
+          <input type="text" id="pet-info" required placeholder="Contoh: Miko (Kucing Persia)" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Keluhan / Gejala Klinis</label>
+          <textarea id="pet-complaint" rows="3" required placeholder="Ceritakan keluhan atau gejala sakit anabul..." class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600"></textarea>
+        </div>
+
+        <button type="submit" class="w-full bg-teal-600 text-white font-semibold text-xs py-3 rounded-xl hover:bg-teal-700 transition">
+          Lanjut ke Konfirmasi WhatsApp ➔
+        </button>
+      </form>
     </div>
   </main>
 
   <script>
-    // MASUKKAN KREDENSIAL SUPABASE DARI CATATAN HP ANDA DI SINI:
     const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let activeService = null;
+    let activeDoctorName = '';
 
     async function loadVetsData() {
       const container = document.getElementById('vets-container');
@@ -52,7 +97,7 @@
         `);
 
       if (error) {
-        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat data. Periksa kembali URL & Key Supabase Anda.</div>`;
+        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat data. Periksa koneksi Anda.</div>`;
         return;
       }
 
@@ -84,7 +129,7 @@
                     <p class="text-xs font-semibold text-gray-800">${svc.title}</p>
                     <p class="text-xs font-bold text-teal-700">Rp ${Number(svc.price).toLocaleString('id-ID')}</p>
                   </div>
-                  <button onclick="pilihLayanan('${svc.title}',${svc.price})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-teal-700">
+                  <button onclick="pilihLayanan('${vet.full_name}', '${svc.title}',${svc.price})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-teal-700">
                     Pilih
                   </button>
                 </div>
@@ -96,8 +141,56 @@
       `).join('');
     }
 
-    function pilihLayanan(title, price) {
-      alert(`Anda memilih: ${title} (Rp ${price.toLocaleString('id-ID')})\n\nTahap selanjutnya: Integrasi pembayaran / checkout.`);
+    function pilihLayanan(doctorName, serviceTitle, price) {
+      activeDoctorName = doctorName;
+      activeService = { title: serviceTitle, price: price };
+
+      document.getElementById('selected-service-title').innerText = `${serviceTitle} (oleh ${doctorName})`;
+      document.getElementById('selected-service-price').innerText = `Rp ${price.toLocaleString('id-ID')}`;
+
+      // Sembunyikan katalog, tampilkan form booking
+      document.getElementById('section-catalog').classList.add('hidden');
+      document.getElementById('section-booking').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function batalBooking() {
+      document.getElementById('section-booking').classList.add('hidden');
+      document.getElementById('section-catalog').classList.remove('hidden');
+    }
+
+    async function kirimBooking(event) {
+      event.preventDefault();
+
+      const ownerName = document.getElementById('owner-name').value;
+      const ownerPhone = document.getElementById('owner-phone').value;
+      const petInfo = document.getElementById('pet-info').value;
+      const complaint = document.getElementById('pet-complaint').value;
+
+      // 1. Simpan transaksi ke Supabase
+      const { error } = await supabaseClient
+        .from('transactions')
+        .insert([
+          { 
+            client_name: ownerName, 
+            pet_info: petInfo, 
+            service_detail: `${activeService.title} - ${activeDoctorName}`,
+            total_amount: activeService.price,
+            status: 'pending'
+          }
+        ]);
+
+      if (error) {
+        alert('Gagal menyimpan data booking ke database. Silakan coba lagi.');
+        return;
+      }
+
+      // 2. Format pesan WhatsApp otomatis untuk dokter/admin
+      const noAdminWhatsApp = '6281234567890'; // Ganti dengan nomor WhatsApp Anda nanti
+      const pesan = `Halo ${activeDoctorName}, saya ingin mendaftarkan hewan peliharaan untuk konsultasi/layanan.%0A%0A*Detail Booking:*%0A- Layanan: ${activeService.title}%0A- Biaya: Rp ${activeService.price.toLocaleString('id-ID')}%0A- Nama Pemilik: ${ownerName}%0A- No. HP: ${ownerPhone}%0A- Nama Hewan: ${petInfo}%0A- Keluhan: ${complaint}%0A%0AMohon konfirmasinya, terima kasih!`;
+
+      // 3. Arahkan ke WhatsApp
+      window.location.href = `https://wa.me/${noAdminWhatsApp}?text=${pesan}`;
     }
 
     loadVetsData();
