@@ -183,7 +183,7 @@
       e.preventDefault();
       
       const submitBtn = document.getElementById('submit-btn');
-      submitBtn.innerText = "Mengirim Pesanan...";
+      submitBtn.innerText = "Menyimpan ke Sistem...";
       submitBtn.disabled = true;
 
       const serviceId = document.getElementById('selected-service-id').value;
@@ -197,11 +197,11 @@
       const platformFee = Math.round(amount * 0.15);
       let proofUrl = null;
 
-      // 1. Coba upload bukti gambar (jika gagal, tetap lanjut simpan data)
-      if (proofFile) {
-        try {
+      try {
+        // Coba upload gambar ke bucket proofs jika ada
+        if (proofFile) {
           const fileExt = proofFile.name.split('.').pop();
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+          const fileName = `proof_${Date.now()}.${fileExt}`;
           
           const { error: uploadError } = await supabaseClient.storage
             .from('proofs')
@@ -213,14 +213,10 @@
               .getPublicUrl(fileName);
             proofUrl = urlData.publicUrl;
           }
-        } catch (errUpload) {
-          console.warn("Upload error, continuing insertion:", errUpload);
         }
-      }
 
-      // 2. Simpan transaksi ke database Supabase
-      try {
-        const { error: insError } = await supabaseClient.from('transactions').insert([
+        // Simpan langsung ke tabel transactions
+        const { error: insertError } = await supabaseClient.from('transactions').insert([
           {
             service_id: serviceId,
             service_detail: serviceDetail,
@@ -235,14 +231,20 @@
           }
         ]);
 
-        if (insError) {
-          console.error("Supabase insert error:", insError);
+        if (insertError) {
+          alert('Gagal menyimpan transaksi: ' + insertError.message);
+          submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
+          submitBtn.disabled = false;
+          return;
         }
-      } catch (errIns) {
-        console.error("Insert catch error:", errIns);
+
+      } catch (err) {
+        alert('Terjadi kesalahan: ' + err.message);
+        submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
+        submitBtn.disabled = false;
+        return;
       }
 
-      // 3. Arahkan ke WA Admin
       alert('Pesanan berhasil dibuat! Anda akan diarahkan ke WhatsApp.');
       
       const adminPhone = '6281215667746';
@@ -258,5 +260,5 @@
     }
   </script>
 </body>
-              </html>
-              
+  </html>
+  
