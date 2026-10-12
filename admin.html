@@ -3,63 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VetBook - Admin Control Center</title>
+  <title>Admin Panel - VetBook</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 pb-12">
 
-  <header class="bg-gray-900 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
-    <div class="flex items-center gap-2">
-      <h1 class="text-lg font-bold">🐾 VetBook Admin</h1>
-      <span class="bg-teal-600 text-[10px] px-2.5 py-0.5 rounded-full font-mono uppercase">Control Center</span>
+  <!-- Header Admin -->
+  <header class="bg-slate-900 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-base flex items-center gap-2">🐾 VetBook Admin</h1>
+      <p class="text-[10px] text-slate-400">Pusat Kendali & Verifikasi Transaksi</p>
     </div>
-    <div class="flex items-center gap-2">
-      <a href="vet-dashboard.html" class="bg-blue-700 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium">
-        🩺 Dompet Dokter
-      </a>
-      <a href="record.html" class="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium">
-        📋 Rekam Medis
-      </a>
-      <button onclick="loadDashboardData()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
-        🔄 Refresh
-      </button>
-    </div>
+    <button onclick="loadDashboardData()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700">
+      🔄 Refresh
+    </button>
   </header>
 
-  <main class="max-w-4xl mx-auto p-4 space-y-6">
-    
-    <!-- Cards Summary Keuangan -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-        <p class="text-xs text-gray-500 font-medium">Total Omzet Masuk Platform</p>
-        <p id="total-revenue" class="text-xl font-bold text-gray-900">Rp 0</p>
+  <main class="max-w-md mx-auto p-4 space-y-4">
+
+    <!-- Ringkasan Keuangan -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+        <p class="text-[11px] font-semibold text-teal-700 uppercase">Hak Platform (15%)</p>
+        <p id="total-platform" class="text-lg font-extrabold text-teal-900 mt-1">Rp 0</p>
       </div>
-      <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm space-y-1 bg-teal-50/30">
-        <p class="text-xs text-teal-700 font-medium">Hak Platform (15%)</p>
-        <p id="total-platform-fee" class="text-xl font-bold text-teal-800">Rp 0</p>
-      </div>
-      <div class="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm space-y-1 bg-blue-50/30">
-        <p class="text-xs text-blue-700 font-medium">Hak Total Dokter (85%)</p>
-        <p id="total-doctor-share" class="text-xl font-bold text-blue-800">Rp 0</p>
+
+      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+        <p class="text-[11px] font-semibold text-blue-700 uppercase">Hak Dokter (85%)</p>
+        <p id="total-doctor" class="text-lg font-extrabold text-blue-900 mt-1">Rp 0</p>
       </div>
     </div>
 
-    <!-- Daftar Permintaan Penarikan Saldo Dokter (Withdrawals) -->
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-200 space-y-4">
-      <h2 class="text-base font-bold text-amber-900">💸 Permintaan Penarikan Saldo Dokter</h2>
-      <div id="withdrawals-container" class="space-y-3">
-        <div class="text-center py-4 text-gray-400 text-xs">Memuat permintaan penarikan...</div>
+    <!-- Daftar Transaksi Pasien -->
+    <section class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h2 class="font-bold text-gray-900 text-sm">Daftar Transaksi Pasien</h2>
+        <span id="trans-count" class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">0 Data</span>
       </div>
-    </div>
 
-    <!-- Tabel Transaksi Pasien -->
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-4">
-      <h2 class="text-base font-bold text-gray-900">Daftar Transaksi Pasien</h2>
-      <div id="transactions-container" class="space-y-3">
-        <div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>
+      <div id="transactions-list" class="space-y-3">
+        <div class="text-center py-6 text-gray-400 text-xs">Memuat data transaksi...</div>
       </div>
-    </div>
+    </section>
 
   </main>
 
@@ -69,159 +55,116 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function loadDashboardData() {
-      loadTransactions();
-      loadWithdrawals();
+      const listContainer = document.getElementById('transactions-list');
+      const countBadge = document.getElementById('trans-count');
+
+      try {
+        const { data: trans, error } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!trans || trans.length === 0) {
+          listContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Belum ada transaksi.</div>`;
+          countBadge.innerText = '0 Data';
+          updateFinancialSummary([]);
+          return;
+        }
+
+        countBadge.innerText = `${trans.length} Data`;
+        updateFinancialSummary(trans);
+
+        listContainer.innerHTML = trans.map(t => {
+          const isLunas = (t.payment_status || '').toUpperCase() === 'PAID' || (t.payment_status || '').toUpperCase() === 'LUNAS';
+          const total = Number(t.total_amount || 0);
+          const platform = Math.round(total * 0.15);
+          const doctor = total - platform;
+
+          return `
+            <div class="p-3 rounded-xl border ${isLunas ? 'border-teal-200 bg-teal-50/30' : 'border-amber-200 bg-amber-50/30'} space-y-2">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h3 class="font-bold text-xs text-gray-900">${t.service_detail || 'Layanan Medis'}</h3>
+                  <p class="text-[11px] text-gray-600">👤 <b>${t.client_name || '-'}</b> (${t.client_phone || '-'})</p>
+                  <p class="text-[10px] text-gray-500">🐾 Pasien: ${t.pet_info || '-'}</p>
+                </div>
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">
+                  ${isLunas ? 'LUNAS' : 'PENDING'}
+                </span>
+              </div>
+
+              <div class="flex justify-between items-center text-[11px] border-t border-b border-gray-100 py-1.5 my-1">
+                <span class="font-semibold text-gray-700">Total: Rp ${total.toLocaleString('id-ID')}</span>
+                <span class="text-gray-400 text-[10px]">(Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
+              </div>
+
+              <div class="flex gap-2 justify-end pt-1">
+                ${t.proof_url ? `
+                  <a href="${t.proof_url}" target="_blank" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-semibold px-2.5 py-1 rounded-lg border">
+                    📷 Lihat Bukti TF
+                  </a>
+                ` : ''}
+
+                ${!isLunas ? `
+                  <button onclick="markAsPaid('${t.id}')" class="bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow-sm">
+                    ✓ Konfirmasi Lunas
+                  </button>
+                ` : `
+                  <span class="text-[10px] text-teal-700 font-bold flex items-center gap-1">
+                    ✓ Pembayaran Diverifikasi
+                  </span>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = `<div class="text-center py-6 text-red-500 text-xs">Gagal memuat data: ${err.message}</div>`;
+      }
     }
 
-    async function loadTransactions() {
-      const container = document.getElementById('transactions-container');
-      const { data: txs, error } = await supabaseClient
+    async function markAsPaid(id) {
+      if (!confirm('Apakah Anda yakin transaksi ini sudah lunas?')) return;
+
+      const { error } = await supabaseClient
         .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .update({ payment_status: 'PAID', status: 'completed' })
+        .eq('id', id);
 
       if (error) {
-        container.innerHTML = `<div class="text-center text-red-500 text-xs py-8">Gagal memuat transaksi: ${error.message}</div>`;
-        return;
+        alert('Gagal mengonfirmasi: ' + error.message);
+      } else {
+        alert('Transaksi berhasil dikonfirmasi LUNAS!');
+        loadDashboardData();
       }
+    }
 
-      if (!txs || txs.length === 0) {
-        document.getElementById('total-revenue').innerText = `Rp 0`;
-        document.getElementById('total-platform-fee').innerText = `Rp 0`;
-        document.getElementById('total-doctor-share').innerText = `Rp 0`;
-        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">Belum ada transaksi.</div>`;
-        return;
-      }
+    function updateFinancialSummary(transList) {
+      let totalPlatform = 0;
+      let totalDoctor = 0;
 
-      let grandTotal = 0, totalPlatform = 0, totalDoctor = 0;
+      transList.forEach(t => {
+        const isLunas = (t.payment_status || '').toUpperCase() === 'PAID' || (t.payment_status || '').toUpperCase() === 'LUNAS';
+        if (isLunas) {
+          const total = Number(t.total_amount || 0);
+          const platform = Math.round(total * 0.15);
+          const doctor = total - platform;
 
-      txs.forEach(t => {
-        // Membaca status baik dari kolom payment_status maupun status
-        const rawStatus = (t.payment_status || t.status || '').toLowerCase();
-        const isPaid = (rawStatus === 'completed' || rawStatus === 'lunas' || rawStatus === 'paid');
-
-        if (isPaid) {
-          const amount = Number(t.total_amount || t.amount || 0);
-          const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
-          grandTotal += amount;
-          totalPlatform += pFee;
-          totalDoctor += (amount - pFee);
+          totalPlatform += platform;
+          totalDoctor += doctor;
         }
       });
 
-      // Update ringkasan keuangan
-      document.getElementById('total-revenue').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-      document.getElementById('total-platform-fee').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
-      document.getElementById('total-doctor-share').innerText = `Rp ${totalDoctor.toLocaleString('id-ID')}`;
-
-      // Render daftar transaksi
-      container.innerHTML = txs.map(t => {
-        const amount = Number(t.total_amount || t.amount || 0);
-        const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
-        const dShare = amount - pFee;
-        
-        const currentStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
-        const isPending = (currentStatus === 'PENDING');
-
-        return `
-          <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/50 space-y-3">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-xs text-gray-400">${new Date(t.created_at).toLocaleString('id-ID')}</p>
-                <h3 class="font-bold text-sm text-gray-900">${t.client_name || t.patient_name || 'Klien'} (${t.client_phone || t.phone || '-'})</h3>
-                <p class="text-xs text-teal-700 font-semibold mt-0.5">📍 ${t.service_detail || t.service || '-'}</p>
-              </div>
-              <span class="${isPending ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase">
-                ${currentStatus}
-              </span>
-            </div>
-
-            <div class="bg-white p-2.5 rounded-lg border border-gray-200 text-xs space-y-1">
-              <p><strong>Total Transfer:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
-              <div class="flex gap-4 text-[11px] text-gray-500 pt-1 border-t mt-1">
-                <span>Fee Platform (15%): <strong class="text-teal-700">Rp ${pFee.toLocaleString('id-ID')}</strong></span>
-                <span>Hak Dokter (85%): <strong class="text-blue-700">Rp ${dShare.toLocaleString('id-ID')}</strong></span>
-              </div>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-1">
-              ${isPending ? `
-                <button onclick="approveTransaction('${t.id}')" class="bg-teal-600 text-white text-xs px-3.5 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium shadow-sm">
-                  ✓ Konfirmasi Lunas
-                </button>
-              ` : `
-                <span class="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                  ✓ Pembayaran Terverifikasi
-                </span>
-              `}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function approveTransaction(txId) {
-      // Update status pada payment_status dan status sekaligus agar sinkron
-      const { error } = await supabaseClient
-        .from('transactions')
-        .update({ payment_status: 'LUNAS', status: 'completed' })
-        .eq('id', txId);
-
-      if (error) {
-        alert('Gagal mengonfirmasi transaksi: ' + error.message);
-        return;
-      }
-      alert('Transaksi berhasil dikonfirmasi LUNAS!');
-      loadDashboardData();
-    }
-
-    async function loadWithdrawals() {
-      const container = document.getElementById('withdrawals-container');
-      const { data: wds, error } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
-
-      if (error || !wds || wds.length === 0) {
-        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-3">Tidak ada permintaan penarikan dana.</div>`;
-        return;
-      }
-
-      container.innerHTML = wds.map(w => {
-        const isPending = (w.status === 'pending');
-        let badgeStyle = 'bg-amber-100 text-amber-800';
-        if (w.status === 'approved') badgeStyle = 'bg-emerald-100 text-emerald-800';
-
-        return `
-          <div class="bg-amber-50/50 border border-amber-200 p-3.5 rounded-xl flex justify-between items-center text-xs">
-            <div>
-              <p class="font-bold text-gray-900">${w.vet_name}</p>
-              <p class="text-amber-800 font-bold">Minta Tarik: Rp ${Number(w.amount).toLocaleString('id-ID')}</p>
-              <p class="text-[11px] text-gray-500">Ke: ${w.bank_info}</p>
-              <p class="text-[10px] text-gray-400 mt-0.5">${new Date(w.created_at).toLocaleString('id-ID')}</p>
-            </div>
-            <div>
-              ${isPending ? `
-                <button onclick="processWithdrawal('${w.id}')" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition font-medium">
-                  ✓ Setujui
-                </button>
-              ` : `
-                <span class="${badgeStyle} px-2.5 py-1 rounded-full font-semibold uppercase text-[10px]">Disetujui</span>
-              `}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function processWithdrawal(wdId) {
-      const { error } = await supabaseClient.from('withdrawals').update({ status: 'approved' }).eq('id', wdId);
-      if (error) {
-        alert('Gagal menyetujui: ' + error.message);
-        return;
-      }
-      alert('Penarikan dana berhasil disetujui!');
-      loadDashboardData();
+      document.getElementById('total-platform').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
+      document.getElementById('total-doctor').innerText = `Rp ${totalDoctor.toLocaleString('id-ID')}`;
     }
 
     loadDashboardData();
   </script>
 </body>
-</html>
+  </html>
+  
