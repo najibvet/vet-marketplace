@@ -9,257 +9,180 @@
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 pb-12">
 
+  <!-- Header -->
   <header class="bg-teal-700 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
-    <h1 class="text-xl font-bold flex items-center gap-2">🐾 VetBook Marketplace</h1>
-    <span class="bg-teal-800 text-xs px-2.5 py-1 rounded-full font-mono">v2.0 Split Fee</span>
+    <div>
+      <h1 class="font-bold text-lg">🐾 VetBook v2.0</h1>
+      <p class="text-xs text-teal-100">Booking Konsultasi & Layanan Medis</p>
+    </div>
+    <a href="ADMIN.html" class="bg-teal-800 hover:bg-teal-900 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium border border-teal-600">
+      Admin Panel
+    </a>
   </header>
 
   <main class="max-w-md mx-auto p-4 space-y-6">
-    <!-- Bagian Direktori Banyak Dokter -->
-    <div id="section-catalog">
-      <div class="mb-4">
-        <h2 class="text-lg font-bold text-teal-900">Pilih Dokter & Layanan</h2>
-        <p class="text-xs text-gray-500">Silakan pilih dokter hewan profesional sesuai kebutuhan anabul Anda</p>
+    
+    <!-- Bagian Daftar Dokter Tersedia -->
+    <section class="space-y-3">
+      <h2 class="font-bold text-gray-900 text-sm uppercase tracking-wider px-1">Dokter Praktisi</h2>
+      <div id="vets-container" class="grid grid-cols-1 gap-3">
+        <div class="text-center py-6 text-gray-400 text-xs bg-white rounded-2xl border">Memuat daftar dokter...</div>
       </div>
+    </section>
 
-      <div id="vets-container" class="space-y-4">
-        <div class="text-center py-8 text-gray-400 text-sm">Memuat daftar dokter...</div>
+    <!-- Bagian Layanan & Booking -->
+    <section class="space-y-3">
+      <h2 class="font-bold text-gray-900 text-sm uppercase tracking-wider px-1">Pilih Layanan Konsultasi</h2>
+      <div id="services-container" class="space-y-3">
+        <div class="text-center py-6 text-gray-400 text-xs bg-white rounded-2xl border">Memuat layanan...</div>
       </div>
-    </div>
+    </section>
 
-    <!-- Bagian Form Booking -->
-    <div id="section-booking" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+  </main>
+
+  <!-- Modal Booking -->
+  <div id="booking-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-3">
-        <h2 class="text-base font-bold text-teal-900">Formulir Pendaftaran Pasien</h2>
-        <button onclick="batalBooking()" class="text-xs text-gray-400 hover:text-gray-600 font-medium">✕ Batal</button>
+        <h3 id="modal-service-title" class="font-bold text-gray-900 text-base">Formulir Booking</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
       </div>
+      
+      <form id="booking-form" onsubmit="submitBooking(event)" class="space-y-3">
+        <input type="hidden" id="selected-service-id">
+        <input type="hidden" id="selected-service-price">
+        <input type="hidden" id="selected-service-name">
 
-      <div class="bg-teal-50 p-3 rounded-xl border border-teal-100 text-xs space-y-1">
-        <p class="text-gray-500 font-medium">Dokter & Layanan Dipilih:</p>
-        <p id="selected-service-title" class="font-bold text-teal-900 text-sm">-</p>
-        <p id="selected-service-price" class="font-bold text-teal-700">-</p>
-      </div>
-
-      <form id="booking-form" onsubmit="tampilkanPembayaran(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Pemilik / Client</label>
-          <input type="text" id="owner-name" required placeholder="Contoh: Budi Santoso" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Klien / Pemilik</label>
+          <input type="text" id="client-name" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: Budi Santoso">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-700 mb-1">No. WhatsApp / HP</label>
-          <input type="tel" id="owner-phone" required placeholder="Contoh: 081234567890" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">No. WhatsApp (Aktif)</label>
+          <input type="tel" id="client-phone" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: 081234567890">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Hewan & Jenis (Anabul)</label>
-          <input type="text" id="pet-info" required placeholder="Contoh: Miko (Kucing Persia)" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nama & Jenis Anabul / Pasien</label>
+          <input type="text" id="pet-info" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: Miko (Kucing Persia)">
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 mb-1">Keluhan / Gejala Klinis</label>
-          <textarea id="pet-complaint" rows="3" required placeholder="Ceritakan keluhan atau gejala sakit anabul..." class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-teal-600"></textarea>
+        <div class="pt-2">
+          <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-sm">
+            Konfirmasi & Kirim Pesanan
+          </button>
         </div>
-
-        <button type="submit" class="w-full bg-teal-600 text-white font-semibold text-xs py-3 rounded-xl hover:bg-teal-700 transition">
-          Lanjut ke Instruksi Pembayaran ➔
-        </button>
       </form>
     </div>
-
-    <!-- Bagian Konfirmasi Pembayaran & Rincian Split Fee -->
-    <div id="section-payment" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h2 class="text-base font-bold text-teal-900">Instruksi Pembayaran</h2>
-        <button onclick="batalBooking()" class="text-xs text-gray-400 hover:text-gray-600 font-medium">✕ Batal</button>
-      </div>
-
-      <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs space-y-1 text-amber-900">
-        <p class="font-semibold">Total Tagihan Pembayaran:</p>
-        <p id="payment-total" class="font-bold text-sm text-teal-800">-</p>
-      </div>
-
-      <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3 text-xs">
-        <p class="font-bold text-gray-800">Silakan lakukan transfer via Bank:</p>
-        <div class="bg-white p-3 rounded-lg border border-teal-100 space-y-1">
-          <p class="font-semibold text-teal-900">Bank BCA</p>
-          <p class="font-mono text-sm font-bold text-gray-800">0300664695</p>
-          <p class="text-gray-500">a.n. Nur Rohman Najib</p>
-        </div>
-        
-        <div class="border-t pt-2 text-[11px] text-gray-500 space-y-0.5">
-          <p class="font-semibold text-gray-700">Rincian Alokasi Dana Sistem:</p>
-          <p id="split-doctor">🔹 Hak Dokter (85%): -</p>
-          <p id="split-platform">🔹 Biaya Platform VetBook (15%): -</p>
-        </div>
-
-        <p class="text-[11px] text-gray-500 italic mt-1">Setelah transfer, klik tombol di bawah untuk konfirmasi dan mengirim data ke WhatsApp.</p>
-      </div>
-
-      <button onclick="prosesFinalBooking()" class="w-full bg-teal-600 text-white font-semibold text-xs py-3 rounded-xl hover:bg-teal-700 transition">
-        Konfirmasi & Kirim ke WhatsApp ➔
-      </button>
-    </div>
-  </main>
+  </div>
 
   <script>
     const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
-
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let activeService = null;
-    let activeDoctorName = '';
-    let formDataTemp = {};
+    async function loadMarketplaceData() {
+      // 1. Ambil Data Dokter
+      const { data: vets, error: vetErr } = await supabaseClient.from('vets').select('*');
+      const vetContainer = document.getElementById('vets-container');
 
-    async function loadVetsData() {
-      const container = document.getElementById('vets-container');
-
-      // Mengambil data semua dokter beserta relasi layanan mereka dari Supabase
-      const { data: vets, error } = await supabaseClient
-        .from('vets')
-        .select(`
-          id,
-          full_name,
-          title,
-          city,
-          avatar_url,
-          services (
-            id,
-            title,
-            price,
-            category
-          )
-        `);
-
-      if (error) {
-        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat data dokter. Periksa koneksi Anda.</div>`;
-        return;
-      }
-
-      if (!vets || vets.length === 0) {
-        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-6">Belum ada dokter hewan yang terdaftar.</div>`;
-        return;
-      }
-
-      // Render daftar semua dokter secara dinamis
-      container.innerHTML = vets.map(vet => `
-        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-          <div class="flex items-center gap-4">
-            <img src="${vet.avatar_url || 'https://via.placeholder.com/100'}" class="w-16 h-16 rounded-full object-cover border-2 border-teal-500 shadow-sm">
-            <div>
-              <h3 class="font-bold text-base text-gray-900">${vet.full_name}</h3>
-              <p class="text-xs text-teal-600 font-semibold">${vet.title}</p>
-              <p class="text-xs text-gray-400 mt-1">📍 ${vet.city || 'Indonesia'}</p>
+      if (!vetErr && vets) {
+        vetContainer.innerHTML = vets.map(v => `
+          <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <img src="${v.avatar_url || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100'}" class="w-12 h-12 rounded-full object-cover border border-teal-500">
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">${v.full_name}</h3>
+                <p class="text-teal-700 text-[11px] font-medium">${v.title || 'Dokter Hewan'}</p>
+                <p class="text-gray-400 text-[10px]">📍 ${v.city || 'Indonesia'}</p>
+              </div>
             </div>
+            <a href="doctor.html?id=${v.id}" class="bg-gray-100 hover:bg-teal-50 text-teal-700 text-xs px-3 py-1.5 rounded-xl font-medium transition border border-gray-200">
+              Profil
+            </a>
           </div>
+        `).join('');
+      }
 
-          <hr class="border-gray-100">
+      // 2. Ambil Data Layanan
+      const { data: services, error: srvErr } = await supabaseClient.from('services').select('*, vets(full_name)');
+      const srvContainer = document.getElementById('services-container');
 
-          <div class="space-y-2">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Layanan Tersedia</p>
-            ${
-              vet.services && vet.services.length > 0 
-              ? vet.services.map(svc => `
-                <div class="flex justify-between items-center bg-teal-50/50 p-3 rounded-xl border border-teal-100">
-                  <div>
-                    <p class="text-xs font-semibold text-gray-800">${svc.title}</p>
-                    <p class="text-xs font-bold text-teal-700">Rp ${Number(svc.price).toLocaleString('id-ID')}</p>
-                  </div>
-                  <button onclick="pilihLayanan('${vet.full_name}', '${svc.title}',${svc.price})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-teal-700 transition">
-                    Pilih
-                  </button>
-                </div>
-              `).join('')
-              : `<p class="text-xs text-gray-400 italic">Belum ada layanan untuk dokter ini.</p>`
-            }
+      if (srvErr || !services) {
+        srvContainer.innerHTML = `<div class="bg-white p-4 rounded-2xl text-center text-gray-400 text-xs">Gagal memuat layanan.</div>`;
+        return;
+      }
+
+      srvContainer.innerHTML = services.map(s => `
+        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-sm text-gray-900">${s.title}</h3>
+              <p class="text-xs text-teal-700 font-medium mt-0.5">Oleh: ${s.vets?.full_name || 'Tim Dokter'}</p>
+            </div>
+            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
+              Rp ${Number(s.price).toLocaleString('id-ID')}
+            </span>
           </div>
+          <button onclick="openModal('${s.id}', '${s.title} - ${s.vets?.full_name || ''}', ${s.price})" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm">
+            Booking Sekarang
+          </button>
         </div>
       `).join('');
     }
 
-    function pilihLayanan(doctorName, serviceTitle, price) {
-      activeDoctorName = doctorName;
-      activeService = { title: serviceTitle, price: price };
-
-      document.getElementById('selected-service-title').innerText = `${serviceTitle} (oleh ${doctorName})`;
-      document.getElementById('selected-service-price').innerText = `Rp ${price.toLocaleString('id-ID')}`;
-
-      document.getElementById('section-catalog').classList.add('hidden');
-      document.getElementById('section-booking').classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    function openModal(id, title, price) {
+      document.getElementById('selected-service-id').value = id;
+      document.getElementById('selected-service-name').value = title;
+      document.getElementById('selected-service-price').value = price;
+      document.getElementById('modal-service-title').innerText = "Booking: " + title;
+      document.getElementById('booking-modal').classList.remove('hidden');
     }
 
-    function batalBooking() {
-      document.getElementById('section-booking').classList.add('hidden');
-      document.getElementById('section-payment').classList.add('hidden');
-      document.getElementById('section-catalog').classList.remove('hidden');
+    function closeModal() {
+      document.getElementById('booking-modal').classList.add('hidden');
     }
 
-    function tampilkanPembayaran(event) {
-      event.preventDefault();
+    async function submitBooking(e) {
+      e.preventDefault();
+      const serviceId = document.getElementById('selected-service-id').value;
+      const serviceDetail = document.getElementById('selected-service-name').value;
+      const amount = Number(document.getElementById('selected-service-price').value);
+      const clientName = document.getElementById('client-name').value;
+      const clientPhone = document.getElementById('client-phone').value;
+      const petInfo = document.getElementById('pet-info').value;
 
-      formDataTemp = {
-        ownerName: document.getElementById('owner-name').value.trim(),
-        ownerPhone: document.getElementById('owner-phone').value.trim(),
-        petInfo: document.getElementById('pet-info').value.trim(),
-        complaint: document.getElementById('pet-complaint').value.trim()
-      };
+      const platformFee = Math.round(amount * 0.15);
 
-      if (!formDataTemp.ownerName || !formDataTemp.ownerPhone || !formDataTemp.petInfo || !formDataTemp.complaint) {
-        alert('Mohon isi semua data formulir dengan lengkap.');
-        return;
-      }
-
-      // Hitung rincian bagi hasil 85% dan 15%
-      const price = activeService.price;
-      const doctorShare = Math.round(price * 0.85);
-      const platformFee = price - doctorShare;
-
-      document.getElementById('payment-total').innerText = `Rp ${price.toLocaleString('id-ID')}`;
-      document.getElementById('split-doctor').innerText = `🔹 Hak Dokter (85%): Rp ${doctorShare.toLocaleString('id-ID')}`;
-      document.getElementById('split-platform').innerText = `🔹 Biaya Platform VetBook (15%): Rp ${platformFee.toLocaleString('id-ID')}`;
-
-      document.getElementById('section-booking').classList.add('hidden');
-      document.getElementById('section-payment').classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    async function prosesFinalBooking() {
-      const price = activeService.price;
-      const doctorShare = Math.round(price * 0.85);
-      const platformFee = price - doctorShare;
-
-      // 1. Simpan transaksi ke Supabase beserta rincian pembagian fee
-      const { error } = await supabaseClient
-        .from('transactions')
-        .insert([
-          { 
-            client_name: formDataTemp.ownerName, 
-            client_phone: formDataTemp.ownerPhone, 
-            pet_info: formDataTemp.petInfo, 
-            service_detail: `${activeService.title} - ${activeDoctorName}`,
-            total_amount: price,
-            platform_fee: platformFee, // Menyimpan 15% bagian aplikasi
-            status: 'pending'
-          }
-        ]);
+      const { error } = await supabaseClient.from('transactions').insert([
+        {
+          service_id: serviceId,
+          service_detail: serviceDetail,
+          total_amount: amount,
+          platform_fee: platformFee,
+          client_name: clientName,
+          client_phone: clientPhone,
+          pet_info: petInfo,
+          status: 'pending'
+        }
+      ]);
 
       if (error) {
-        alert('Gagal menyimpan ke database: ' + error.message);
+        alert('Gagal membuat pesanan: ' + error.message);
         return;
       }
 
-      // 2. Format pesan WhatsApp otomatis dengan detail lengkap & bagi hasil
-      const noAdminWhatsApp = '6281215667746'; 
-      const pesan = `Halo Admin VetBook, ada pendaftaran baru dengan rincian bagi hasil:%0A%0A*Detail Booking:*%0A- Dokter Tujuan: ${activeDoctorName}%0A- Layanan: ${activeService.title}%0A- Total Biaya: Rp ${price.toLocaleString('id-ID')}%0A   🔸 Hak Dokter (85%): Rp ${doctorShare.toLocaleString('id-ID')}%0A   🔸 Fee Platform (15%): Rp ${platformFee.toLocaleString('id-ID')}%0A- Nama Pemilik: ${formDataTemp.ownerName}%0A- No. HP: ${formDataTemp.ownerPhone}%0A- Nama Hewan: ${formDataTemp.petInfo}%0A- Keluhan: ${formDataTemp.complaint}%0A%0AMohon verifikasi transfer BCA, terima kasih!`;
-
-      // 3. Arahkan ke WhatsApp
-      window.location.href = `https://wa.me/${noAdminWhatsApp}?text=${pesan}`;
+      alert('Booking berhasil dikirim! Anda akan diarahkan ke WhatsApp.');
+      
+      const adminPhone = '6285725175566'; // Nomor WhatsApp Admin / Dokter Utama
+      const waText = `Halo Admin VetBook, saya ingin konfirmasi booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n\nMohon petunjuk pembayaran selanjutnya. Terima kasih.`;
+      
+      window.location.href = `https://wa.me/${adminPhone}?text=${encodeURIComponent(waText)}`;
     }
 
-    loadVetsData();
+    loadMarketplaceData();
   </script>
 </body>
-      </html>
-      
+  </html>
+  
