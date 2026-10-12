@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VetBook - Admin Dashboard</title>
+  <title>VetBook - Admin Control Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -15,10 +15,13 @@
       <span class="bg-teal-600 text-[10px] px-2.5 py-0.5 rounded-full font-mono uppercase">Control Center</span>
     </div>
     <div class="flex items-center gap-2">
-      <a href="record.html" class="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1 border border-teal-500">
+      <a href="vet-dashboard.html" class="bg-blue-700 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium">
+        🩺 Dompet Dokter
+      </a>
+      <a href="record.html" class="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium">
         📋 Rekam Medis
       </a>
-      <button onclick="loadTransactions()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
+      <button onclick="loadDashboardData()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
         🔄 Refresh
       </button>
     </div>
@@ -29,7 +32,7 @@
     <!-- Cards Summary Keuangan -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-        <p class="text-xs text-gray-500 font-medium">Total Omzet Masuk</p>
+        <p class="text-xs text-gray-500 font-medium">Total Omzet Masuk Platform</p>
         <p id="total-revenue" class="text-xl font-bold text-gray-900">Rp 0</p>
       </div>
       <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm space-y-1 bg-teal-50/30">
@@ -42,15 +45,17 @@
       </div>
     </div>
 
-    <!-- Tabel / List Transaksi -->
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <div>
-          <h2 class="text-base font-bold text-gray-900">Daftar Transaksi Pasien</h2>
-          <p class="text-xs text-gray-500">Kelola konfirmasi pembayaran dan status pemesanan</p>
-        </div>
+    <!-- Daftar Permintaan Penarikan Saldo Dokter (Withdrawals) -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-200 space-y-4">
+      <h2 class="text-base font-bold text-amber-900">💸 Permintaan Penarikan Saldo Dokter</h2>
+      <div id="withdrawals-container" class="space-y-3">
+        <div class="text-center py-4 text-gray-400 text-xs">Memuat permintaan penarikan...</div>
       </div>
+    </div>
 
+    <!-- Tabel Transaksi Pasien -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-4">
+      <h2 class="text-base font-bold text-gray-900">Daftar Transaksi Pasien</h2>
       <div id="transactions-container" class="space-y-3">
         <div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>
       </div>
@@ -61,123 +66,135 @@
   <script>
     const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
-
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadDashboardData() {
+      loadTransactions();
+      loadWithdrawals();
+    }
 
     async function loadTransactions() {
       const container = document.getElementById('transactions-container');
-      container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>`;
+      const { data: txs, error } = await supabaseClient.from('transactions').select('*').order('created_at', { ascending: false });
 
-      const { data: txs, error } = await supabaseClient
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat transaksi: ${error.message}</div>`;
+      if (error || !txs || txs.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">Belum ada transaksi.</div>`;
         return;
       }
 
-      if (!txs || !Array.isArray(txs) || txs.length === 0) {
-        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">Belum ada transaksi masuk.</div>`;
-        updateSummary(0, 0, 0);
-        return;
-      }
-
-      let grandTotal = 0;
-      let totalPlatform = 0;
-      let totalDoctor = 0;
+      let grandTotal = 0, totalPlatform = 0, totalDoctor = 0;
 
       txs.forEach(t => {
         const amount = Number(t.total_amount || 0);
         const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
-        const dShare = amount - pFee;
-
         grandTotal += amount;
         totalPlatform += pFee;
-        totalDoctor += dShare;
+        totalDoctor += (amount - pFee);
       });
 
-      updateSummary(grandTotal, totalPlatform, totalDoctor);
+      document.getElementById('total-revenue').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+      document.getElementById('total-platform-fee').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
+      document.getElementById('total-doctor-share').innerText = `Rp ${totalDoctor.toLocaleString('id-ID')}`;
 
       container.innerHTML = txs.map(t => {
         const amount = Number(t.total_amount || 0);
         const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
         const dShare = amount - pFee;
-
         const isPending = (t.status === 'pending');
-        const statusBadge = isPending 
-          ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">PENDING</span>`
-          : `<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">LUNAS / SELESAI</span>`;
-
-        const tanggal = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', {
-          dateStyle: 'medium',
-          timeStyle: 'short'
-        }) : '-';
-
-        const noHp = (t.client_phone || '').replace(/[^0-9]/g, '');
-        const formattedPhone = noHp.startsWith('0') ? '62' + noHp.slice(1) : noHp;
 
         return `
           <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
             <div class="flex justify-between items-start">
               <div>
-                <p class="text-xs text-gray-400">${tanggal}</p>
-                <h3 class="font-bold text-sm text-gray-900">${t.client_name || 'Klien'} <span class="text-gray-500 font-normal">(${t.client_phone || '-'})</span></h3>
+                <p class="text-xs text-gray-400">${new Date(t.created_at).toLocaleString('id-ID')}</p>
+                <h3 class="font-bold text-sm text-gray-900">${t.client_name || 'Klien'} (${t.client_phone || '-'})</h3>
                 <p class="text-xs text-teal-700 font-semibold mt-0.5">📍 ${t.service_detail || '-'}</p>
               </div>
-              <div>${statusBadge}</div>
+              <span class="${isPending ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase">
+                ${t.status}
+              </span>
             </div>
 
             <div class="bg-white p-2.5 rounded-lg border border-gray-200 text-xs space-y-1">
-              <p class="text-gray-600"><strong>Pasien/Anabul:</strong> ${t.pet_info || '-'}</p>
-              <p class="text-gray-800 font-bold"><strong>Total Transfer:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
+              <p><strong>Total Transfer:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
               <div class="flex gap-4 text-[11px] text-gray-500 pt-1 border-t mt-1">
-                <span>🔸 Fee Platform (15%): <strong class="text-teal-700">Rp ${pFee.toLocaleString('id-ID')}</strong></span>
-                <span>🔸 Hak Dokter (85%): <strong class="text-blue-700">Rp ${dShare.toLocaleString('id-ID')}</strong></span>
+                <span>Fee Platform (15%): <strong class="text-teal-700">Rp ${pFee.toLocaleString('id-ID')}</strong></span>
+                <span>Hak Dokter (85%): <strong class="text-blue-700">Rp ${dShare.toLocaleString('id-ID')}</strong></span>
               </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-1">
-              <a href="https://wa.me/${formattedPhone}" target="_blank" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition font-medium flex items-center gap-1">
-                💬 Chat WA
-              </a>
-              ${
-                isPending
-                ? `<button onclick="updateStatus('${t.id}', 'completed')" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium">
-                    ✓ Tandai Selesai
-                   </button>`
-                : `<button onclick="updateStatus('${t.id}', 'pending')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg hover:bg-gray-300 transition font-medium">
-                    ↩ Ubah ke Pending
-                   </button>`
-              }
+              ${isPending ? `
+                <button onclick="approveTransaction('${t.id}', '${t.vet_id}',${dShare})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium">
+                  ✓ Konfirmasi Lunas & Tambah Saldo Dokter
+                </button>
+              ` : `
+                <span class="text-xs text-emerald-700 font-medium">✓ Pembayaran Terverifikasi</span>
+              `}
             </div>
           </div>
         `;
       }).join('');
     }
 
-    function updateSummary(total, platform, doctor) {
-      document.getElementById('total-revenue').innerText = `Rp ${total.toLocaleString('id-ID')}`;
-      document.getElementById('total-platform-fee').innerText = `Rp ${platform.toLocaleString('id-ID')}`;
-      document.getElementById('total-doctor-share').innerText = `Rp ${doctor.toLocaleString('id-ID')}`;
+    async function approveTransaction(txId, vetId, doctorShare) {
+      // 1. Ubah status transaksi
+      const { error: txErr } = await supabaseClient.from('transactions').update({ status: 'completed' }).eq('id', txId);
+      if (txErr) return alert('Gagal update transaksi: ' + txErr.message);
+
+      // 2. Tambahkan saldo ke dokter
+      if (vetId) {
+        const { data: vet } = await supabaseClient.from('vets').select('balance').eq('id', vetId).single();
+        const newBalance = Number(vet?.balance || 0) + Number(doctorShare);
+        await supabaseClient.from('vets').update({ balance: newBalance }).eq('id', vetId);
+      }
+
+      alert('Transaksi LUNAS! Hak dokter (85%) telah ditambahkan ke saldo dokter.');
+      loadDashboardData();
     }
 
-    async function updateStatus(id, newStatus) {
-      const { error } = await supabaseClient
-        .from('transactions')
-        .update({ status: newStatus })
-        .eq('id', id);
+    async function loadWithdrawals() {
+      const container = document.getElementById('withdrawals-container');
+      const { data: wds } = await supabaseClient.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
 
-      if (error) {
-        alert('Gagal mengupdate status: ' + error.message);
+      if (!wds || wds.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-3">Tidak ada permintaan penarikan dana tertunda.</div>`;
         return;
       }
 
-      loadTransactions();
+      container.innerHTML = wds.map(w => `
+        <div class="bg-amber-50/50 border border-amber-200 p-3 rounded-xl flex justify-between items-center text-xs">
+          <div>
+            <p class="font-bold text-gray-900">${w.vet_name}</p>
+            <p class="text-amber-800 font-bold">Minta Tarik: Rp ${Number(w.amount).toLocaleString('id-ID')}</p>
+            <p class="text-[11px] text-gray-500">Ke: ${w.bank_info}</p>
+          </div>
+          <button onclick="processWithdrawal('${w.id}', '${w.vet_id}', ${w.amount})" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">
+            ✓ Setujui & Potong Saldo
+          </button>
+        </div>
+      `).join('');
     }
 
-    loadTransactions();
+    async function processWithdrawal(wdId, vetId, amount) {
+      // 1. Kurangi saldo dokter
+      const { data: vet } = await supabaseClient.from('vets').select('balance').eq('id', vetId).single();
+      const currentBal = Number(vet?.balance || 0);
+
+      if (currentBal < amount) {
+        alert('Saldo dokter tidak mencukupi untuk disetujui!');
+        return;
+      }
+
+      await supabaseClient.from('vets').update({ balance: currentBal - amount }).eq('id', vetId);
+      await supabaseClient.from('withdrawals').update({ status: 'approved' }).eq('id', wdId);
+
+      alert('Penarikan dana disetujui! Silakan transfer uang ke rekening dokter.');
+      loadDashboardData();
+    }
+
+    loadDashboardData();
   </script>
 </body>
-</html>
+  </html>
+  
