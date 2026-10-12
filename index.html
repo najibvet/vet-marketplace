@@ -37,11 +37,41 @@
       </div>
     </section>
 
-    <!-- Bagian Layanan & Booking -->
+    <!-- Bagian Layanan & Booking (Langsung Tampil Instan) -->
     <section class="space-y-3">
       <h2 class="font-bold text-gray-900 text-sm uppercase tracking-wider px-1">Pilih Layanan Konsultasi</h2>
       <div id="services-container" class="space-y-3">
-        <div class="text-center py-4 text-gray-400 text-xs bg-white rounded-2xl border">Memuat daftar layanan...</div>
+        
+        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-sm text-gray-900">TeleVet (Pet n Poultry)</h3>
+              <p class="text-xs text-teal-700 font-medium mt-0.5">Konsultasi Medis Online</p>
+            </div>
+            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
+              Rp 50.000
+            </span>
+          </div>
+          <button onclick="openModal('default-1', 'TeleVet (Pet n Poultry)', 50000)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm">
+            Booking Sekarang
+          </button>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-sm text-gray-900">Vaksinasi Anabul</h3>
+              <p class="text-xs text-teal-700 font-medium mt-0.5">Layanan Homecare / Klinik</p>
+            </div>
+            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
+              Rp 200.000
+            </span>
+          </div>
+          <button onclick="openModal('default-2', 'Vaksinasi Anabul', 200000)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm">
+            Booking Sekarang
+          </button>
+        </div>
+
       </div>
     </section>
 
@@ -107,6 +137,7 @@
       const vetContainer = document.getElementById('vets-container');
       const srvContainer = document.getElementById('services-container');
 
+      // Ambil data dokter dari Supabase jika ada
       try {
         const { data: vets } = await supabaseClient.from('vets').select('*');
         if (vets && vets.length > 0) {
@@ -120,16 +151,15 @@
                   <p class="text-gray-400 text-[10px]">📍 ${v.city || 'Indonesia'}</p>
                 </div>
               </div>
-              <a href="doctor.html?id=${v.id}" class="bg-gray-100 hover:bg-teal-50 text-teal-700 text-xs px-3 py-1.5 rounded-xl font-medium transition border border-gray-200">
-                Profil
-              </a>
+              <span class="bg-teal-50 text-teal-700 text-xs px-3 py-1.5 rounded-xl font-medium border border-teal-100">Aktif</span>
             </div>
           `).join('');
         }
       } catch (e) {
-        console.log("Using default vet");
+        console.log("Using default vet UI");
       }
 
+      // Ambil layanan dari Supabase jika ada
       try {
         const { data: services } = await supabaseClient.from('services').select('*');
         if (services && services.length > 0) {
@@ -144,27 +174,99 @@
                   Rp ${Number(s.price || 50000).toLocaleString('id-ID')}
                 </span>
               </div>
-              <button onclick="openModal('${s.id}', '${s.title \vert{}\vert{} 'Konsultasi'}',${s.price || 50000})" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm">
+              <button onclick="openModal('${s.id}', '${s.title || 'Konsultasi'}', ${s.price || 50000})" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm">
                 Booking Sekarang
               </button>
             </div>
           `).join('');
-          return;
         }
       } catch (e) {
-        console.log("Using default services");
+        console.log("Using default services UI");
+      }
+    }
+
+    function openModal(id, title, price) {
+      document.getElementById('selected-service-id').value = id;
+      document.getElementById('selected-service-name').value = title;
+      document.getElementById('selected-service-price').value = price;
+      document.getElementById('modal-service-title').innerText = "Booking: " + title;
+      document.getElementById('booking-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('booking-modal').classList.add('hidden');
+    }
+
+    async function submitBooking(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.innerText = "Mengunggah & Menyimpan...";
+      submitBtn.disabled = true;
+
+      const serviceId = document.getElementById('selected-service-id').value;
+      const serviceDetail = document.getElementById('selected-service-name').value;
+      const amount = Number(document.getElementById('selected-service-price').value);
+      const clientName = document.getElementById('client-name').value;
+      const clientPhone = document.getElementById('client-phone').value;
+      const petInfo = document.getElementById('pet-info').value;
+      const proofFile = document.getElementById('booking-proof').files[0];
+
+      const platformFee = Math.round(amount * 0.15);
+      let proofUrl = null;
+
+      try {
+        if (proofFile) {
+          const fileExt = proofFile.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabaseClient.storage
+            .from('proofs')
+            .upload(fileName, proofFile);
+
+          if (!uploadError) {
+            const { data: urlData } = supabaseClient.storage
+              .from('proofs')
+              .getPublicUrl(fileName);
+            proofUrl = urlData.publicUrl;
+          }
+        }
+
+        await supabaseClient.from('transactions').insert([
+          {
+            service_id: serviceId,
+            service_detail: serviceDetail,
+            total_amount: amount,
+            platform_fee: platformFee,
+            client_name: clientName,
+            client_phone: clientPhone,
+            pet_info: petInfo,
+            payment_status: 'PENDING',
+            status: 'pending',
+            proof_url: proofUrl
+          }
+        ]);
+
+      } catch (err) {
+        console.error("Trans insert fallback");
       }
 
-      srvContainer.innerHTML = `
-        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">TeleVet (Pet n Poultry) - drh. Najib</h3>
-              <p class="text-xs text-teal-700 font-medium mt-0.5">Konsultasi Online</p>
-            </div>
-            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
-              Rp 50.000
-            </span>
-          </div>
-          <button onclick="openModal('
-              
+      alert('Pesanan berhasil dibuat! Anda akan diarahkan ke WhatsApp.');
+      
+      const adminPhone = '6281215667746';
+      let waText = `Halo Admin VetBook, saya ingin konfirmasi pembayaran booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n`;
+      
+      if (proofUrl) {
+        waText += `\n*📷 Link Bukti Transfer:* ${proofUrl}\n`;
+      }
+      
+      waText += `\nMohon verifikasi pembayarannya. Terima kasih.`;
+      
+      window.location.href = `https://wa.me/${adminPhone}?text=${encodeURIComponent(waText)}`;
+    }
+
+    loadMarketplaceData();
+  </script>
+</body>
+          </html>
+          
