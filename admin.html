@@ -9,7 +9,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 pb-12">
 
-  <!-- Header Admin -->
   <header class="bg-slate-900 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
     <div>
       <h1 class="font-bold text-base flex items-center gap-2">🐾 VetBook Admin</h1>
@@ -61,7 +60,6 @@
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Nomor WhatsApp Resmi Dokter Praktisi
     const DOCTOR_PHONE_NAJIB = '6281215667746';   // drh. Najib
     const DOCTOR_PHONE_BINTANG = '6281230722452'; // drh. Bintang
 
@@ -100,7 +98,6 @@
           const platform = Math.round(total * 0.15);
           const doctor = total - platform;
 
-          // Deteksi Dokter dan Nomor WA yang Sesuai
           let targetDoc = 'drh. Najib';
           let docPhone = DOCTOR_PHONE_NAJIB;
           const detailLower = serviceName.toLowerCase();
@@ -110,23 +107,21 @@
             docPhone = DOCTOR_PHONE_BINTANG;
           }
 
-          // Format nomor telepon Klien ke format Internasional (628...)
           let formattedClientPhone = clientPhone.replace(/\D/g, '');
           if (formattedClientPhone.startsWith('0')) {
             formattedClientPhone = '62' + formattedClientPhone.slice(1);
           }
 
-          // Link Ruang Chat In-App 20 Menit
-          const consultationLink = `https://najibvet.github.io/vet-marketplace/consultation.html?id=${t.id}`;
+          // Link khusus dengan parameter role otomatis
+          const clientLink = `https://najibvet.github.io/vet-marketplace/consultation.html?id=${t.id}&role=client`;
+          const doctorLink = `https://najibvet.github.io/vet-marketplace/consultation.html?id=${t.id}&role=doctor`;
 
-          // Format Pesan WA untuk Klien
           const waClientMsg = encodeURIComponent(
-            `Halo Kak *${clientName}*, pembayaran untuk *${serviceName}* (Pasien: *${petInfo}*) telah dikonfirmasi LUNAS ✅.\n\nSesi konsultasi live chat 20 menit bersama *${targetDoc}* siap dimulai melalui tautan berikut:\n👉 ${consultationLink}\n\nSilakan klik link di atas untuk masuk ke ruang obrolan. Terima kasih!`
+            `Halo Kak *${clientName}*, pembayaran untuk *${serviceName}* (Pasien: *${petInfo}*) telah dikonfirmasi LUNAS ✅.\n\nSesi konsultasi live chat 20 menit bersama *${targetDoc}* dapat diakses melalui link khusus Anda:\n👉 ${clientLink}\n\nSilakan klik link tersebut untuk mulai berkonsultasi. Terima kasih!`
           );
 
-          // Format Pesan WA untuk Dokter yang Bertugas
           const waDoctorMsg = encodeURIComponent(
-            `Halo *${targetDoc}*, ada sesi konsultasi baru yang telah LUNAS ✅.\n\n👤 *Klien:* ${clientName}\n🐾 *Pasien:* ${petInfo}\n📋 *Layanan:* ${serviceName}\n\nSilakan masuk ke ruang obrolan melalui link berikut dan ubah opsi "Kirim sebagai" menjadi Dokter Praktisi:\n👉 ${consultationLink}`
+            `Halo *${targetDoc}*, ada sesi konsultasi baru yang telah LUNAS ✅.\n\n👤 *Klien:* ${clientName}\n🐾 *Pasien:* ${petInfo}\n📋 *Layanan:* ${serviceName}\n\nSilakan akses ruang obrolan melalui link khusus dokter berikut:\n👉 ${doctorLink}`
           );
 
           return `
@@ -185,7 +180,7 @@
       if (error) {
         alert('Gagal mengonfirmasi: ' + error.message);
       } else {
-        alert('Transaksi LUNAS! Tombol kirim link ke Klien dan WhatsApp Dokter kini aktif.');
+        alert('Transaksi LUNAS! Tombol kirim link khusus Klien dan Dokter aktif.');
         loadDashboardData();
       }
     }
@@ -223,4 +218,5 @@
     loadDashboardData();
   </script>
 </body>
-</html>
+          </html>
+          
