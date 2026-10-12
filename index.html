@@ -167,14 +167,15 @@
       const petInfo = document.getElementById('pet-info').value;
       const complaint = document.getElementById('pet-complaint').value;
 
-      // 1. Simpan transaksi ke Supabase
+      // 1. Simpan transaksi ke Supabase (menyertakan client_phone)
       const { error } = await supabaseClient
         .from('transactions')
         .insert([
           { 
             client_name: ownerName, 
-            pet_info: `${petInfo} (No. HP: ${ownerPhone})`, 
-            service_detail: `${activeService.title} - ${activeDoctorName} (Keluhan: ${complaint})`,
+            client_phone: ownerPhone, // Menyesuaikan kolom database
+            pet_info: petInfo, 
+            service_detail: `${activeService.title} - ${activeDoctorName}`,
             total_amount: activeService.price,
             status: 'pending'
           }
@@ -196,5 +197,5 @@
     loadVetsData();
   </script>
 </body>
-  </html>
-  
+            </html>
+            
