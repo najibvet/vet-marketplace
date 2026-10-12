@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VetBook - Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 pb-12">
+
+  <header class="bg-gray-900 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
+    <div class="flex items-center gap-2">
+      <h1 class="text-lg font-bold">🐾 VetBook Admin</h1>
+      <span class="bg-teal-600 text-[10px] px-2 py-0.5 rounded-full font-mono uppercase">Control Center</span>
+    </div>
+    <button onclick="loadTransactions()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
+      🔄 Refresh
+    </button>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 space-y-6">
+    
+    <!-- Cards Summary Keuangan -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-1">
+        <p class="text-xs text-gray-500 font-medium">Total Omzet Masuk</p>
+        <p id="total-revenue" class="text-xl font-bold text-gray-900">Rp 0</p>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm space-y-1 bg-teal-50/30">
+        <p class="text-xs text-teal-700 font-medium">Hak Platform (15%)</p>
+        <p id="total-platform-fee" class="text-xl font-bold text-teal-800">Rp 0</p>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm space-y-1 bg-blue-50/30">
+        <p class="text-xs text-blue-700 font-medium">Hak Total Dokter (85%)</p>
+        <p id="total-doctor-share" class="text-xl font-bold text-blue-800">Rp 0</p>
+      </div>
+    </div>
+
+    <!-- Tabel / List Transaksi -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h2 class="text-base font-bold text-gray-900">Daftar Transaksi Pasien</h2>
+          <p class="text-xs text-gray-500">Kelola konfirmasi pembayaran dan status pemesanan</p>
+        </div>
+      </div>
+
+      <div id="transactions-container" class="space-y-3">
+        <div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadTransactions() {
+      const container = document.getElementById('transactions-container');
+      container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>`;
+
+      // Ambil transaksi terbaru dari Supabase
+      const { data: txs, error } = await supabaseClient
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-xs text-center">Gagal memuat transaksi: ${error.message}</div>`;
+        return;
+      }
+
+      if (!txs || txs.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">Belum ada transaksi masuk.</div>`;
+        updateSummary(0, 0, 0);
+        return;
+      }
+
+      // Hitung total finansial
+      let grandTotal = 0;
+      let totalPlatform = 0;
+      let totalDoctor = 0;
+
+      txs.forEach(t => {
+        const amount = Number(t.total_amount || 0);
+        const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
+        const dShare = amount - pFee;
+
+        // Hanya hitung summary jika statusnya completed / lunas atau pending
+        grandTotal += amount;
+        totalPlatform += pFee;
+        totalDoctor += dShare;
+      });
+
+      updateSummary(grandTotal, totalPlatform, totalDoctor);
+
+      // Render daftar transaksi
+      container.innerHTML = txs.map(t => {
+        const amount = Number(t.total_amount || 0);
+        const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
+        const dShare = amount - pFee;
+
+        const isPending = (t.status === 'pending');
+        const statusBadge = isPending 
+          ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">PENDING</span>`
+          : `<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">LUNAS / SELESAI</span>`;
+
+        const tanggal = new Date(t.created_at).toLocaleString('id-ID', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+
+        return `
+          <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-xs text-gray-400">${tanggal}</p>
+                <h3 class="font-bold text-sm text-gray-900">${t.client_name} <span class="text-gray-500 font-normal">(${t.client_phone})</span></h3>
+                <p class="text-xs text-teal-700 font-semibold mt-0.5">📍 ${t.service_detail || '-'}</p>
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+
+            <div class="bg-white p-2.5 rounded-lg border border-gray-200 text-xs space-y-1">
+              <p class="text-gray-600"><strong>Pasien:</strong> ${t.pet_info || '-'}</p>
+              <p class="text-gray-500 text-[11px]"><strong>Total Transfer:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
+              <div class="flex gap-4 text-[11px] text-gray-500 pt-1 border-t">
+                <span>🔸 Fee Platform (15%): <strong class="text-teal-700">Rp ${pFee.toLocaleString('id-ID')}</strong></span>
+                <span>🔸 Hak Dokter (85%): <strong class="text-blue-700">Rp ${dShare.toLocaleString('id-ID')}</strong></span>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+              ${
+                isPending
+                ? `<button onclick="updateStatus('${t.id}', 'completed')" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium">
+                    ✓ Tandai Lunas
+                   </button>`
+                : `<button onclick="updateStatus('${t.id}', 'pending')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-lg hover:bg-gray-300 transition font-medium">
+                    ↩ Ubah ke Pending
+                   </button>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateSummary(total, platform, doctor) {
+      document.getElementById('total-revenue').innerText = `Rp ${total.toLocaleString('id-ID')}`;
+      document.getElementById('total-platform-fee').innerText = `Rp ${platform.toLocaleString('id-ID')}`;
+      document.getElementById('total-doctor-share').innerText = `Rp ${doctor.toLocaleString('id-ID')}`;
+    }
+
+    async function updateStatus(id, newStatus) {
+      const { error } = await supabaseClient
+        .from('transactions')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        alert('Gagal mengupdate status: ' + error.message);
+        return;
+      }
+
+      loadTransactions();
+    }
+
+    loadTransactions();
+  </script>
+</body>
+  </html>
+  
