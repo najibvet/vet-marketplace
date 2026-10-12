@@ -66,41 +66,56 @@
 
       countEl.innerText = transactions.length;
 
-      container.innerHTML = transactions.map(item => `
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-3">
-          <div class="flex justify-between items-start border-b border-gray-100 pb-2">
-            <div>
-              <p class="font-bold text-sm text-gray-900">${item.client_name || 'Tanpa Nama'}</p>
-              <p class="text-xs text-teal-700 font-semibold mt-0.5">🐾 ${item.pet_info || '-'}</p>
+      container.innerHTML = transactions.map(item => {
+        // Bersihkan format nomor HP untuk tautan WhatsApp
+        let phone = item.client_phone || '';
+        if (phone.startsWith('0')) {
+          phone = '62' + phone.slice(1);
+        }
+
+        return `
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-3">
+            <div class="flex justify-between items-start border-b border-gray-100 pb-2">
+              <div>
+                <p class="font-bold text-sm text-gray-900">${item.client_name || 'Tanpa Nama'}</p>
+                <p class="text-xs text-teal-700 font-semibold mt-0.5">🐾 ${item.pet_info || '-'}</p>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${
+                item.status === 'completed' 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-amber-100 text-amber-800'
+              }">
+                ${item.status === 'completed' ? '✓ Selesai' : '⏳ Pending'}
+              </span>
             </div>
-            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${
-              item.status === 'completed' 
-                ? 'bg-emerald-100 text-emerald-800' 
-                : 'bg-amber-100 text-amber-800'
-            }">
-              ${item.status === 'completed' ? '✓ Selesai' : '⏳ Pending'}
-            </span>
-          </div>
 
-          <div class="text-xs space-y-1 text-gray-600">
-            <p><span class="font-semibold text-gray-500">Layanan:</span> ${item.service_detail || '-'}</p>
-            <p><span class="font-semibold text-gray-500">Biaya:</span> Rp ${Number(item.total_amount || 0).toLocaleString('id-ID')}</p>
-            <p><span class="font-semibold text-gray-500">Waktu:</span> ${new Date(item.created_at).toLocaleString('id-ID')}</p>
-          </div>
+            <div class="text-xs space-y-1 text-gray-600">
+              <p><span class="font-semibold text-gray-500">Layanan:</span> ${item.service_detail || '-'}</p>
+              <p><span class="font-semibold text-gray-500">No. HP:</span> ${item.client_phone || '-'}</p>
+              <p><span class="font-semibold text-gray-500">Biaya:</span> Rp ${Number(item.total_amount || 0).toLocaleString('id-ID')}</p>
+              <p><span class="font-semibold text-gray-500">Waktu:</span> ${new Date(item.created_at).toLocaleString('id-ID')}</p>
+            </div>
 
-          <div class="pt-1 flex gap-2">
-            ${item.status !== 'completed' ? `
-              <button onclick="updateStatus('${item.id}', 'completed')" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs py-2 rounded-lg transition">
-                Tandai Selesai
-              </button>
-            ` : `
-              <button onclick="updateStatus('${item.id}', 'pending')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs py-2 rounded-lg transition">
-                Ubah ke Pending
-              </button>
-            `}
+            <div class="pt-1 flex gap-2">
+              ${phone ? `
+                <a href="https://wa.me/${phone}?text=Halo\%20${encodeURIComponent(item.client_name)},%20menanggapi%20pendaftaran%20untuk%20hewan%20Anda..." target="_blank" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs py-2 rounded-lg text-center transition">
+                  💬 Chat WhatsApp
+                </a>
+              ` : ''}
+              
+              ${item.status !== 'completed' ? `
+                <button onclick="updateStatus('${item.id}', 'completed')" class="flex-1 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs py-2 rounded-lg transition">
+                  Tandai Selesai
+                /button>
+              ` : `
+                <button onclick="updateStatus('${item.id}', 'pending')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs py-2 rounded-lg transition">
+                  Ubah ke Pending
+                </button>
+              `}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     async function updateStatus(id, newStatus) {
@@ -119,5 +134,4 @@
     loadTransactions();
   </script>
 </body>
-  </html>
-  
+</html>
