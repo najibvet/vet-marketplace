@@ -79,12 +79,22 @@
 
       select.innerHTML = '<option value="">-- Pilih Dokter --</option>' + 
         vets.map(v => {
-          // Gabungkan nama dokter dan jabatannya agar jelas di pilihan
-          const doctorName = v.name || v.fullname || v.doctor_name || 'Dokter';
-          const doctorTitle = v.title || v.bio || v.specialization || '';
-          const label = doctorTitle ? `${doctorName} (${doctorTitle})` : doctorName;
+          // Ambil nama dokter dari kolom mana saja yang terisi
+          const nama = v.name || v.fullname || v.doctor_name || v.nama || '';
+          const spesialisasi = v.title || v.bio || v.specialization || '';
           
-          return `<option value="${v.id}">${label}</option>`;
+          let displayName = '';
+          if (nama && spesialisasi) {
+            displayName = `${nama} - ${spesialisasi}`;
+          } else if (nama) {
+            displayName = nama;
+          } else if (spesialisasi) {
+            displayName = spesialisasi;
+          } else {
+            displayName = `Dokter (ID: ${v.id.substring(0,6)})`;
+          }
+
+          return `<option value="${v.id}">${displayName}</option>`;
         }).join('');
     }
 
@@ -100,7 +110,7 @@
       const { data: vet } = await supabaseClient.from('vets').select('*').eq('id', vetId).single();
       if (vet) {
         currentVet = vet;
-        currentVet.displayName = vet.name || vet.fullname || vet.doctor_name || 'Dokter';
+        currentVet.displayName = vet.name || vet.fullname || vet.doctor_name || vet.nama || vet.title || 'Dokter';
         document.getElementById('vet-balance').innerText = `Rp ${Number(vet.balance || 0).toLocaleString('id-ID')}`;
         loadWithdrawals(vet.id);
       }
@@ -165,4 +175,5 @@
     loadVets();
   </script>
 </body>
-</html>
+    </html>
+    
