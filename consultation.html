@@ -15,8 +15,9 @@
       <h1 class="font-bold text-sm flex items-center gap-1.5">🐾 Ruang Konsultasi Medis</h1>
       <p id="service-title-header" class="text-[11px] text-teal-100">Memuat rincian...</p>
     </div>
-    <div class="bg-teal-900/60 border border-teal-400/40 rounded-xl px-2.5 py-1 text-center">
-      <p class="text-[9px] text-teal-200 uppercase tracking-wider font-semibold">Sisa Waktu</p>
+    <!-- Indikator Waktu / Status Sesi -->
+    <div class="bg-teal-900/60 border border-teal-400/40 rounded-xl px-2.5 py-1 text-center min-w-[80px]">
+      <p id="timer-label" class="text-[9px] text-teal-200 uppercase tracking-wider font-semibold">Sisa Waktu</p>
       <div id="timer-display" class="text-sm font-black text-amber-300 font-mono">20:00</div>
     </div>
   </header>
@@ -39,7 +40,7 @@
     <div class="text-center py-12 text-xs text-gray-400">Menghubungkan ke ruang obrolan...</div>
   </main>
 
-  <!-- Form Input Pesan (Sticky Bottom tanpa perlu pilih role lagi) -->
+  <!-- Form Input Pesan -->
   <footer class="bg-white border-t border-gray-200 p-3 fixed bottom-0 left-0 right-0 z-20 shadow-lg">
     <div class="max-w-md mx-auto">
       <form id="chat-form" onsubmit="sendMessage(event)" class="flex gap-2">
@@ -64,32 +65,37 @@
     let petInfo = 'Pasien';
     let doctorName = 'Dokter';
 
-    // Tentukan peran otomatis berdasarkan URL
-    let activeSender = 'CLIENT';
+    // Peran Otomatis
+    let activeSender = (urlRole === 'doctor') ? 'DOCTOR' : 'CLIENT';
     let activeSenderName = 'Klien';
 
-    if (urlRole === 'doctor') {
-      activeSender = 'DOCTOR';
-    }
-
-    // Timer 20 Menit (1200 detik)
-    let totalSeconds = 20 * 60;
+    // Logika Timer Berdasarkan Peran
+    const timerLabel = document.getElementById('timer-label');
     const timerDisplay = document.getElementById('timer-display');
 
-    const countdown = setInterval(() => {
-      if (totalSeconds <= 0) {
-        clearInterval(countdown);
-        timerDisplay.innerText = "HABIS";
-        alert("Waktu konsultasi 20 menit telah berakhir.");
-        document.getElementById('chat-input').disabled = true;
-        document.getElementById('send-btn').disabled = true;
-        return;
-      }
-      totalSeconds--;
-      let m = Math.floor(totalSeconds / 60);
-      let s = totalSeconds % 60;
-      timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }, 1000);
+    if (activeSender === 'DOCTOR') {
+      // Tampilan Tanpa Batas Waktu untuk Dokter
+      timerLabel.innerText = "Status Sesi";
+      timerDisplay.innerText = "AKTIF 🟢";
+      timerDisplay.className = "text-xs font-bold text-emerald-300 font-sans my-0.5";
+    } else {
+      // Timer Hitung Mundur 20 Menit untuk Klien
+      let totalSeconds = 20 * 60;
+      const countdown = setInterval(() => {
+        if (totalSeconds <= 0) {
+          clearInterval(countdown);
+          timerDisplay.innerText = "HABIS";
+          alert("Waktu konsultasi 20 menit telah berakhir.");
+          document.getElementById('chat-input').disabled = true;
+          document.getElementById('send-btn').disabled = true;
+          return;
+        }
+        totalSeconds--;
+        let m = Math.floor(totalSeconds / 60);
+        let s = totalSeconds % 60;
+        timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    }
 
     async function initSession() {
       if (!transactionId) {
@@ -144,16 +150,10 @@
 
     async function loadMessages() {
       let query = supabaseClient.from('messages').select('*').order('created_at', { ascending: true });
-      
-      if (transactionId) {
-        query = query.eq('transaction_id', transactionId);
-      }
+      if (transactionId) query = query.eq('transaction_id', transactionId);
 
       const { data, error } = await query;
-
-      if (!error) {
-        renderMessages(data || []);
-      }
+      if (!error) renderMessages(data || []);
     }
 
     function renderMessages(msgList) {
@@ -189,7 +189,6 @@
       e.preventDefault();
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
-
       if (!text) return;
 
       input.value = '';
@@ -203,9 +202,7 @@
         }
       ]);
 
-      if (error) {
-        alert("Gagal mengirim pesan: " + error.message);
-      }
+      if (error) alert("Gagal mengirim pesan: " + error.message);
     }
 
     function subscribeRealtimeMessages() {
@@ -226,5 +223,4 @@
     initSession();
   </script>
 </body>
-      </html>
-      
+</html>
