@@ -175,7 +175,7 @@
 
       alert('Booking berhasil dikirim! Anda akan diarahkan ke WhatsApp.');
       
-      const adminPhone = '6285725175566'; // Nomor WhatsApp Admin / Dokter Utama
+      const adminPhone = '6281215667746'; // Nomor WhatsApp Admin / Dokter Utama
       const waText = `Halo Admin VetBook, saya ingin konfirmasi booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n\nMohon petunjuk pembayaran selanjutnya. Terima kasih.`;
       
       window.location.href = `https://wa.me/${adminPhone}?text=${encodeURIComponent(waText)}`;
