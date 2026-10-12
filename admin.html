@@ -84,12 +84,11 @@
         updateFinancialSummary(trans);
 
         listContainer.innerHTML = trans.map(t => {
-          // Mendukung berbagai kemungkinan nama kolom di database
-          const serviceName = t.service_detail || t.service_name || t.title || 'Layanan Medis';
-          const clientName = t.client_name || t.name || '-';
-          const clientPhone = t.client_phone || t.phone || '-';
-          const petInfo = t.pet_info || t.pet || '-';
-          const total = Number(t.total_amount || t.amount || t.price || 0);
+          const serviceName = t.service_detail || 'Layanan Medis';
+          const clientName = t.client_name || '-';
+          const clientPhone = t.client_phone || '-';
+          const petInfo = t.pet_info || '-';
+          const total = Number(t.total_amount || 0);
           
           const payStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
           const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
@@ -102,6 +101,18 @@
           if (detailLower.includes('bintang')) {
             targetDoc = 'drh. Bintang';
           }
+
+          let formattedPhone = clientPhone.replace(/\D/g, '');
+          if (formattedPhone.startsWith('0')) {
+            formattedPhone = '62' + formattedPhone.slice(1);
+          }
+
+          // Link unik menuju halaman konsultasi klien dengan menyertakan ID transaksi
+          const consultationLink = `https://najibvet.github.io/vet-marketplace/consultation.html?id=${t.id}`;
+
+          const waClientMsg = encodeURIComponent(
+            `Halo Kak *${clientName}*, pembayaran untuk layanan *${serviceName}* (Pasien: *${petInfo}*) telah kami verifikasi dan berstatus *LUNAS* ✅.\n\nSesi konsultasi interaktif Anda (durasi maks. 20 menit) kini sudah dapat dimulai melalui tautan berikut:\n👉 ${consultationLink}\n\nDokter (${targetDoc}) akan segera mendampingi Anda. Terima kasih telah menggunakan VetBook v2.0! 🐾`
+          );
 
           return `
             <div class="p-3 rounded-xl border ${isLunas ? 'border-teal-200 bg-teal-50/30' : 'border-amber-200 bg-amber-50/30'} space-y-2">
@@ -122,21 +133,15 @@
                 <span class="text-gray-400 text-[10px]">(Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
               </div>
 
-              <div class="flex gap-2 justify-end pt-1">
-                ${t.proof_url ? `
-                  <a href="${t.proof_url}" target="_blank" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-semibold px-2.5 py-1 rounded-lg border">
-                    📷 Lihat Bukti TF
-                  </a>
-                ` : ''}
-
+              <div class="flex flex-wrap gap-2 justify-end pt-1">
                 ${!isLunas ? `
-                  <button onclick="markAsPaid('${t.id}')" class="bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow-sm">
+                  <button onclick="markAsPaid('${t.id}')" class="bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm">
                     ✓ Konfirmasi Lunas
                   </button>
                 ` : `
-                  <span class="text-[10px] text-teal-700 font-bold flex items-center gap-1">
-                    ✓ Pembayaran Diverifikasi
-                  </span>
+                  <a href="https://wa.me/${formattedPhone}?text=${waClientMsg}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1">
+                    💬 Kirim Link Sesi WA (20 Menit)
+                  </a>
                 `}
               </div>
             </div>
@@ -160,7 +165,7 @@
       if (error) {
         alert('Gagal mengonfirmasi: ' + error.message);
       } else {
-        alert('Transaksi berhasil dikonfirmasi LUNAS!');
+        alert('Transaksi berhasil dikonfirmasi LUNAS! Tombol kirim link sesi ke WA klien kini aktif.');
         loadDashboardData();
       }
     }
@@ -175,13 +180,13 @@
         const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
 
         if (isLunas) {
-          const total = Number(t.total_amount || t.amount || t.price || 0);
+          const total = Number(t.total_amount || 0);
           const platform = Math.round(total * 0.15);
           const doctorShare = total - platform;
 
           totalPlatform += platform;
 
-          const serviceName = (t.service_detail || t.service_name || '').toLowerCase();
+          const serviceName = (t.service_detail || '').toLowerCase();
           if (serviceName.includes('bintang')) {
             totalBintang += doctorShare;
           } else {
@@ -198,4 +203,5 @@
     loadDashboardData();
   </script>
 </body>
-</html>
+        </html>
+        
