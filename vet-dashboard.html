@@ -72,16 +72,19 @@
       const select = document.getElementById('select-vet');
       const { data: vets, error } = await supabaseClient.from('vets').select('*');
       
-      if (error || !vets) {
+      if (error || !vets || vets.length === 0) {
         select.innerHTML = '<option value="">Gagal memuat data dokter</option>';
         return;
       }
 
       select.innerHTML = '<option value="">-- Pilih Dokter --</option>' + 
         vets.map(v => {
-          // Deteksi otomatis nama kolom yang dipakai di tabel vets (name / doctor_name / fullname / title)
-          const vetName = v.name || v.doctor_name || v.fullname || v.title || v.nama || 'Dokter Tanpa Nama';
-          return `<option value="${v.id}">${vetName}</option>`;
+          // Gabungkan nama dokter dan jabatannya agar jelas di pilihan
+          const doctorName = v.name || v.fullname || v.doctor_name || 'Dokter';
+          const doctorTitle = v.title || v.bio || v.specialization || '';
+          const label = doctorTitle ? `${doctorName} (${doctorTitle})` : doctorName;
+          
+          return `<option value="${v.id}">${label}</option>`;
         }).join('');
     }
 
@@ -97,7 +100,7 @@
       const { data: vet } = await supabaseClient.from('vets').select('*').eq('id', vetId).single();
       if (vet) {
         currentVet = vet;
-        currentVet.displayName = vet.name || vet.doctor_name || vet.fullname || vet.title || vet.nama || 'Dokter';
+        currentVet.displayName = vet.name || vet.fullname || vet.doctor_name || 'Dokter';
         document.getElementById('vet-balance').innerText = `Rp ${Number(vet.balance || 0).toLocaleString('id-ID')}`;
         loadWithdrawals(vet.id);
       }
