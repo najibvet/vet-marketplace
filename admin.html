@@ -93,11 +93,13 @@
         return;
       }
 
-      // Hitung Omzet HANYA dari transaksi yang LUNAS / COMPLETED
       let grandTotal = 0, totalPlatform = 0, totalDoctor = 0;
 
       txs.forEach(t => {
-        const isPaid = (t.status === 'completed' || t.status === 'lunas');
+        // Membaca status baik dari kolom payment_status maupun status
+        const rawStatus = (t.payment_status || t.status || '').toLowerCase();
+        const isPaid = (rawStatus === 'completed' || rawStatus === 'lunas' || rawStatus === 'paid');
+
         if (isPaid) {
           const amount = Number(t.total_amount || t.amount || 0);
           const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
@@ -107,17 +109,19 @@
         }
       });
 
-      // Tampilkan hasil perhitungan ke ringkasan atas
+      // Update ringkasan keuangan
       document.getElementById('total-revenue').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
       document.getElementById('total-platform-fee').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
       document.getElementById('total-doctor-share').innerText = `Rp ${totalDoctor.toLocaleString('id-ID')}`;
 
-      // Tampilkan seluruh daftar transaksi pasien
+      // Render daftar transaksi
       container.innerHTML = txs.map(t => {
         const amount = Number(t.total_amount || t.amount || 0);
         const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
         const dShare = amount - pFee;
-        const isPending = (t.status === 'pending' || !t.status);
+        
+        const currentStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
+        const isPending = (currentStatus === 'PENDING');
 
         return `
           <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/50 space-y-3">
@@ -128,7 +132,7 @@
                 <p class="text-xs text-teal-700 font-semibold mt-0.5">📍 ${t.service_detail || t.service || '-'}</p>
               </div>
               <span class="${isPending ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase">
-                ${t.status || 'pending'}
+                ${currentStatus}
               </span>
             </div>
 
@@ -157,7 +161,12 @@
     }
 
     async function approveTransaction(txId) {
-      const { error } = await supabaseClient.from('transactions').update({ status: 'completed' }).eq('id', txId);
+      // Update status pada payment_status dan status sekaligus agar sinkron
+      const { error } = await supabaseClient
+        .from('transactions')
+        .update({ payment_status: 'LUNAS', status: 'completed' })
+        .eq('id', txId);
+
       if (error) {
         alert('Gagal mengonfirmasi transaksi: ' + error.message);
         return;
