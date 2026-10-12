@@ -183,7 +183,7 @@
       e.preventDefault();
       
       const submitBtn = document.getElementById('submit-btn');
-      submitBtn.innerText = "Mengunggah & Menyimpan...";
+      submitBtn.innerText = "Mengirim Pesanan...";
       submitBtn.disabled = true;
 
       const serviceId = document.getElementById('selected-service-id').value;
@@ -197,8 +197,9 @@
       const platformFee = Math.round(amount * 0.15);
       let proofUrl = null;
 
-      try {
-        if (proofFile) {
+      // 1. Coba upload bukti gambar (jika gagal, tetap lanjut simpan data)
+      if (proofFile) {
+        try {
           const fileExt = proofFile.name.split('.').pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
           
@@ -212,9 +213,14 @@
               .getPublicUrl(fileName);
             proofUrl = urlData.publicUrl;
           }
+        } catch (errUpload) {
+          console.warn("Upload error, continuing insertion:", errUpload);
         }
+      }
 
-        await supabaseClient.from('transactions').insert([
+      // 2. Simpan transaksi ke database Supabase
+      try {
+        const { error: insError } = await supabaseClient.from('transactions').insert([
           {
             service_id: serviceId,
             service_detail: serviceDetail,
@@ -229,10 +235,14 @@
           }
         ]);
 
-      } catch (err) {
-        console.error("Trans insert error:", err);
+        if (insError) {
+          console.error("Supabase insert error:", insError);
+        }
+      } catch (errIns) {
+        console.error("Insert catch error:", errIns);
       }
 
+      // 3. Arahkan ke WA Admin
       alert('Pesanan berhasil dibuat! Anda akan diarahkan ke WhatsApp.');
       
       const adminPhone = '6281215667746';
@@ -248,5 +258,5 @@
     }
   </script>
 </body>
-            </html>
-            
+              </html>
+              
