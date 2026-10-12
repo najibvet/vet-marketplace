@@ -22,18 +22,29 @@
 
   <main class="max-w-md mx-auto p-4 space-y-4">
 
-    <!-- Ringkasan Keuangan -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-        <p class="text-[11px] font-semibold text-teal-700 uppercase">Hak Platform (15%)</p>
-        <p id="total-platform" class="text-lg font-extrabold text-teal-900 mt-1">Rp 0</p>
+    <!-- Ringkasan Keuangan Lengkap -->
+    <section class="space-y-3">
+      <!-- Hak Platform -->
+      <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm">
+        <p class="text-[11px] font-bold text-teal-700 uppercase tracking-wider">🏢 Hak Platform (15%)</p>
+        <p id="total-platform" class="text-xl font-extrabold text-teal-900 mt-1">Rp 0</p>
       </div>
 
-      <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-        <p class="text-[11px] font-semibold text-blue-700 uppercase">Hak Dokter (85%)</p>
-        <p id="total-doctor" class="text-lg font-extrabold text-blue-900 mt-1">Rp 0</p>
+      <!-- Breakdown Hak Per Dokter -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- drh. Najib -->
+        <div class="bg-white p-3.5 rounded-2xl border border-blue-200 shadow-sm">
+          <p class="text-[11px] font-bold text-blue-800">👨‍⚕️ Hak drh. Najib (85%)</p>
+          <p id="total-najib" class="text-base font-extrabold text-blue-900 mt-1">Rp 0</p>
+        </div>
+
+        <!-- drh. Bintang -->
+        <div class="bg-white p-3.5 rounded-2xl border border-indigo-200 shadow-sm">
+          <p class="text-[11px] font-bold text-indigo-800">👩‍⚕️ Hak drh. Bintang (85%)</p>
+          <p id="total-bintang" class="text-base font-extrabold text-indigo-900 mt-1">Rp 0</p>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Daftar Transaksi Pasien -->
     <section class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
@@ -82,6 +93,13 @@
           const platform = Math.round(total * 0.15);
           const doctor = total - platform;
 
+          // Deteksi Dokter
+          let targetDoc = 'drh. Najib';
+          const detailLower = (t.service_detail || '').toLowerCase();
+          if (detailLower.includes('bintang')) {
+            targetDoc = 'drh. Bintang';
+          }
+
           return `
             <div class="p-3 rounded-xl border ${isLunas ? 'border-teal-200 bg-teal-50/30' : 'border-amber-200 bg-amber-50/30'} space-y-2">
               <div class="flex justify-between items-start">
@@ -89,6 +107,7 @@
                   <h3 class="font-bold text-xs text-gray-900">${t.service_detail || 'Layanan Medis'}</h3>
                   <p class="text-[11px] text-gray-600">👤 <b>${t.client_name || '-'}</b> (${t.client_phone || '-'})</p>
                   <p class="text-[10px] text-gray-500">🐾 Pasien: ${t.pet_info || '-'}</p>
+                  <p class="text-[10px] text-blue-700 font-semibold mt-0.5">🩺 Dokter Tujuan: ${targetDoc}</p>
                 </div>
                 <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">
                   ${isLunas ? 'LUNAS' : 'PENDING'}
@@ -97,7 +116,7 @@
 
               <div class="flex justify-between items-center text-[11px] border-t border-b border-gray-100 py-1.5 my-1">
                 <span class="font-semibold text-gray-700">Total: Rp ${total.toLocaleString('id-ID')}</span>
-                <span class="text-gray-400 text-[10px]">(Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
+                <span class="text-gray-400 text-[10px]">(Hak Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
               </div>
 
               <div class="flex gap-2 justify-end pt-1">
@@ -145,26 +164,35 @@
 
     function updateFinancialSummary(transList) {
       let totalPlatform = 0;
-      let totalDoctor = 0;
+      let totalNajib = 0;
+      let totalBintang = 0;
 
       transList.forEach(t => {
         const isLunas = (t.payment_status || '').toUpperCase() === 'PAID' || (t.payment_status || '').toUpperCase() === 'LUNAS';
         if (isLunas) {
           const total = Number(t.total_amount || 0);
           const platform = Math.round(total * 0.15);
-          const doctor = total - platform;
+          const doctorShare = total - platform;
 
           totalPlatform += platform;
-          totalDoctor += doctor;
+
+          // Pembagian Hak Berdasarkan Dokter Tujuan
+          const detailLower = (t.service_detail || '').toLowerCase();
+          if (detailLower.includes('bintang')) {
+            totalBintang += doctorShare;
+          } else {
+            // Secara default/umum masuk ke drh. Najib
+            totalNajib += doctorShare;
+          }
         }
       });
 
       document.getElementById('total-platform').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
-      document.getElementById('total-doctor').innerText = `Rp ${totalDoctor.toLocaleString('id-ID')}`;
+      document.getElementById('total-najib').innerText = `Rp ${totalNajib.toLocaleString('id-ID')}`;
+      document.getElementById('total-bintang').innerText = `Rp ${totalBintang.toLocaleString('id-ID')}`;
     }
 
     loadDashboardData();
   </script>
 </body>
-  </html>
-  
+</html>
