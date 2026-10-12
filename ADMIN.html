@@ -63,7 +63,6 @@
       const container = document.getElementById('transactions-container');
       container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Memuat data transaksi...</div>`;
 
-      // Ambil transaksi terbaru dari Supabase
       const { data: txs, error } = await supabaseClient
         .from('transactions')
         .select('*')
@@ -80,7 +79,6 @@
         return;
       }
 
-      // Hitung total finansial
       let grandTotal = 0;
       let totalPlatform = 0;
       let totalDoctor = 0;
@@ -97,7 +95,6 @@
 
       updateSummary(grandTotal, totalPlatform, totalDoctor);
 
-      // Render daftar transaksi
       container.innerHTML = txs.map(t => {
         const amount = Number(t.total_amount || 0);
         const pFee = Number(t.platform_fee || Math.round(amount * 0.15));
