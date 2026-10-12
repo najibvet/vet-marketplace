@@ -35,15 +35,28 @@
   </div>
 
   <!-- Area Chat Message -->
-  <main class="flex-1 max-w-md w-full mx-auto p-4 overflow-y-auto space-y-3 mb-16" id="chat-box">
+  <main class="flex-1 max-w-md w-full mx-auto p-4 overflow-y-auto space-y-3 mb-20" id="chat-box">
     <div class="text-center py-12 text-xs text-gray-400">Memeriksa status sesi...</div>
   </main>
 
-  <!-- Form Input Pesan -->
+  <!-- Form Input Pesan & Lampiran File -->
   <footer class="bg-white border-t border-gray-200 p-3 fixed bottom-0 left-0 right-0 z-20 shadow-lg">
-    <div class="max-w-md mx-auto">
-      <form id="chat-form" onsubmit="sendMessage(event)" class="flex gap-2">
-        <input type="text" id="chat-input" placeholder="Tulis pesan konsultasi di sini..." required class="flex-1 border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"/>
+    <div class="max-w-md mx-auto space-y-2">
+      <!-- Indicator Preview File Sebelum Kirim -->
+      <div id="file-preview-container" class="hidden flex items-center justify-between bg-teal-50 border border-teal-200 p-2 rounded-xl text-xs text-teal-800">
+        <span id="file-preview-name" class="truncate max-w-[200px] font-medium">📷 Foto terpilih</span>
+        <button type="button" onclick="cancelFileSelection()" class="text-rose-600 font-bold px-2">✕ Batal</button>
+      </div>
+
+      <form id="chat-form" onsubmit="sendMessage(event)" class="flex items-center gap-2">
+        <!-- Tombol Lampirkan Foto / Video -->
+        <label for="file-input" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-xl transition border border-gray-300 flex items-center justify-center">
+          📷/🎥
+          <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="handleFileSelect(event)" />
+        </label>
+
+        <input type="text" id="chat-input" placeholder="Tulis pesan atau kirim media..." class="flex-1 border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"/>
+        
         <button type="submit" id="send-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow-sm">
           Kirim
         </button>
@@ -58,13 +71,16 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const transactionId = urlParams.get('id');
-    const urlRole = urlParams.get('role'); // 'client' atau 'doctor'
+    const urlRole = urlParams.get('role');
 
     let clientName = 'Klien';
     let petInfo = 'Pasien';
     let doctorName = 'Dokter';
     let activeSender = (urlRole === 'doctor') ? 'DOCTOR' : 'CLIENT';
     let activeSenderName = 'Klien';
+
+    let selectedFileBase64 = null;
+    let selectedFileType = null; // 'image' atau 'video'
 
     // Pengaturan Timer
     const timerLabel = document.getElementById('timer-label');
@@ -107,7 +123,6 @@
         if (error) throw error;
 
         if (data) {
-          // Cek apakah sesi sudah ditutup sebelumnya
           if (data.session_status === 'closed') {
             showClosedScreen();
             return;
@@ -145,6 +160,34 @@
       }
     }
 
+    // Handle Pilihan File (Foto/Video)
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 15 * 1024 * 1024) { // Batas 15 MB
+        alert("Ukuran file terlalu besar. Maksimal 15 MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        selectedFileBase64 = event.target.result;
+        selectedFileType = file.type.startsWith('video') ? 'video' : 'image';
+
+        document.getElementById('file-preview-name').innerText = (selectedFileType === 'video' ? '🎥 ' : '📷 ') + file.name;
+        document.getElementById('file-preview-container').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function cancelFileSelection() {
+      selectedFileBase64 = null;
+      selectedFileType = null;
+      document.getElementById('file-input').value = '';
+      document.getElementById('file-preview-container').classList.add('hidden');
+    }
+
     async function loadMessages() {
       let query = supabaseClient.from('messages').select('*').order('created_at', { ascending: true });
       if (transactionId) query = query.eq('transaction_id', transactionId);
@@ -159,7 +202,7 @@
         chatBox.innerHTML = `
           <div class="text-center py-12 space-y-2">
             <span class="bg-teal-100 text-teal-800 text-[10px] font-bold px-3 py-1 rounded-full">Sesi Obrolan Aktif</span>
-            <p class="text-xs text-gray-400">Belum ada pesan. Silakan mulai percakapan.</p>
+            <p class="text-xs text-gray-400">Belum ada pesan. Silakan kirim pesan atau foto/video pasien.</p>
           </div>
         `;
         return;
@@ -169,11 +212,22 @@
         const isMe = m.sender === activeSender;
         const timeStr = new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+        let contentHtml = '';
+
+        // Deteksi apakah isi pesan berupa Foto / Video (Base64 atau URL)
+        if (m.text && m.text.startsWith('data:image/')) {
+          contentHtml = `<img src="${m.text}" class="rounded-xl max-w-[220px] max-h-[220px] object-cover cursor-pointer my-1" onclick="window.open('${m.text}')"/>`;
+        } else if (m.text && m.text.startsWith('data:video/')) {
+          contentHtml = `<video src="${m.text}" controls class="rounded-xl max-w-[220px] max-h-[220px] my-1"></video>`;
+        } else {
+          contentHtml = `<div>${m.text}</div>`;
+        }
+
         return `
           <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} my-1.5">
             <span class="text-[9px] text-gray-400 mb-0.5 px-1">${m.sender_name || m.sender} • ${timeStr}</span>
             <div class="max-w-[85%] px-3.5 py-2 rounded-2xl text-xs ${isMe ? 'bg-teal-600 text-white rounded-br-none shadow-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}">
-              ${m.text}
+              ${contentHtml}
             </div>
           </div>
         `;
@@ -186,16 +240,20 @@
       e.preventDefault();
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
-      if (!text) return;
+
+      if (!text && !selectedFileBase64) return;
+
+      const payloadText = selectedFileBase64 ? selectedFileBase64 : text;
 
       input.value = '';
+      cancelFileSelection();
 
       const { error } = await supabaseClient.from('messages').insert([
         {
           transaction_id: transactionId,
           sender: activeSender,
           sender_name: activeSenderName,
-          text: text
+          text: payloadText
         }
       ]);
 
@@ -211,7 +269,6 @@
         .subscribe();
     }
 
-    // Fungsi saat sesi diakhiri (mengunci link secara permanen)
     async function endSession() {
       if (confirm("Apakah Anda yakin ingin mengakhiri sesi konsultasi ini? Setelah ditutup, link ini tidak dapat digunakan kembali.")) {
         await closeSessionInDatabase();
