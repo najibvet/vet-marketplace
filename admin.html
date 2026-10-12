@@ -22,23 +22,19 @@
 
   <main class="max-w-md mx-auto p-4 space-y-4">
 
-    <!-- Ringkasan Keuangan Lengkap -->
+    <!-- Ringkasan Keuangan -->
     <section class="space-y-3">
-      <!-- Hak Platform -->
       <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm">
         <p class="text-[11px] font-bold text-teal-700 uppercase tracking-wider">🏢 Hak Platform (15%)</p>
         <p id="total-platform" class="text-xl font-extrabold text-teal-900 mt-1">Rp 0</p>
       </div>
 
-      <!-- Breakdown Hak Per Dokter -->
       <div class="grid grid-cols-2 gap-3">
-        <!-- drh. Najib -->
         <div class="bg-white p-3.5 rounded-2xl border border-blue-200 shadow-sm">
           <p class="text-[11px] font-bold text-blue-800">👨‍⚕️ Hak drh. Najib (85%)</p>
           <p id="total-najib" class="text-base font-extrabold text-blue-900 mt-1">Rp 0</p>
         </div>
 
-        <!-- drh. Bintang -->
         <div class="bg-white p-3.5 rounded-2xl border border-indigo-200 shadow-sm">
           <p class="text-[11px] font-bold text-indigo-800">👩‍⚕️ Hak drh. Bintang (85%)</p>
           <p id="total-bintang" class="text-base font-extrabold text-indigo-900 mt-1">Rp 0</p>
@@ -78,7 +74,7 @@
         if (error) throw error;
 
         if (!trans || trans.length === 0) {
-          listContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Belum ada transaksi.</div>`;
+          listContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Belum ada transaksi di database.</div>`;
           countBadge.innerText = '0 Data';
           updateFinancialSummary([]);
           return;
@@ -88,14 +84,21 @@
         updateFinancialSummary(trans);
 
         listContainer.innerHTML = trans.map(t => {
-          const isLunas = (t.payment_status || '').toUpperCase() === 'PAID' || (t.payment_status || '').toUpperCase() === 'LUNAS';
-          const total = Number(t.total_amount || 0);
+          // Mendukung berbagai kemungkinan nama kolom di database
+          const serviceName = t.service_detail || t.service_name || t.title || 'Layanan Medis';
+          const clientName = t.client_name || t.name || '-';
+          const clientPhone = t.client_phone || t.phone || '-';
+          const petInfo = t.pet_info || t.pet || '-';
+          const total = Number(t.total_amount || t.amount || t.price || 0);
+          
+          const payStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
+          const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
+
           const platform = Math.round(total * 0.15);
           const doctor = total - platform;
 
-          // Deteksi Dokter
           let targetDoc = 'drh. Najib';
-          const detailLower = (t.service_detail || '').toLowerCase();
+          const detailLower = serviceName.toLowerCase();
           if (detailLower.includes('bintang')) {
             targetDoc = 'drh. Bintang';
           }
@@ -104,9 +107,9 @@
             <div class="p-3 rounded-xl border ${isLunas ? 'border-teal-200 bg-teal-50/30' : 'border-amber-200 bg-amber-50/30'} space-y-2">
               <div class="flex justify-between items-start">
                 <div>
-                  <h3 class="font-bold text-xs text-gray-900">${t.service_detail || 'Layanan Medis'}</h3>
-                  <p class="text-[11px] text-gray-600">👤 <b>${t.client_name || '-'}</b> (${t.client_phone || '-'})</p>
-                  <p class="text-[10px] text-gray-500">🐾 Pasien: ${t.pet_info || '-'}</p>
+                  <h3 class="font-bold text-xs text-gray-900">${serviceName}</h3>
+                  <p class="text-[11px] text-gray-600">👤 <b>${clientName}</b> (${clientPhone})</p>
+                  <p class="text-[10px] text-gray-500">🐾 Pasien: ${petInfo}</p>
                   <p class="text-[10px] text-blue-700 font-semibold mt-0.5">🩺 Dokter Tujuan: ${targetDoc}</p>
                 </div>
                 <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">
@@ -116,7 +119,7 @@
 
               <div class="flex justify-between items-center text-[11px] border-t border-b border-gray-100 py-1.5 my-1">
                 <span class="font-semibold text-gray-700">Total: Rp ${total.toLocaleString('id-ID')}</span>
-                <span class="text-gray-400 text-[10px]">(Hak Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
+                <span class="text-gray-400 text-[10px]">(Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
               </div>
 
               <div class="flex gap-2 justify-end pt-1">
@@ -142,7 +145,7 @@
 
       } catch (err) {
         console.error(err);
-        listContainer.innerHTML = `<div class="text-center py-6 text-red-500 text-xs">Gagal memuat data: ${err.message}</div>`;
+        listContainer.innerHTML = `<div class="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs">Gagal memuat data: ${err.message}</div>`;
       }
     }
 
@@ -168,20 +171,20 @@
       let totalBintang = 0;
 
       transList.forEach(t => {
-        const isLunas = (t.payment_status || '').toUpperCase() === 'PAID' || (t.payment_status || '').toUpperCase() === 'LUNAS';
+        const payStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
+        const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
+
         if (isLunas) {
-          const total = Number(t.total_amount || 0);
+          const total = Number(t.total_amount || t.amount || t.price || 0);
           const platform = Math.round(total * 0.15);
           const doctorShare = total - platform;
 
           totalPlatform += platform;
 
-          // Pembagian Hak Berdasarkan Dokter Tujuan
-          const detailLower = (t.service_detail || '').toLowerCase();
-          if (detailLower.includes('bintang')) {
+          const serviceName = (t.service_detail || t.service_name || '').toLowerCase();
+          if (serviceName.includes('bintang')) {
             totalBintang += doctorShare;
           } else {
-            // Secara default/umum masuk ke drh. Najib
             totalNajib += doctorShare;
           }
         }
