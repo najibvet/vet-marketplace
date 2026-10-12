@@ -125,8 +125,8 @@
 
             <div class="flex justify-end gap-2 pt-1">
               ${isPending ? `
-                <button onclick="approveTransaction('${t.id}', '${t.vet_id}',${dShare})" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium">
-                  ✓ Konfirmasi Lunas & Tambah Saldo Dokter
+                <button onclick="approveTransaction('${t.id}')" class="bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-teal-700 transition font-medium">
+                  ✓ Konfirmasi Lunas
                 </button>
               ` : `
                 <span class="text-xs text-emerald-700 font-medium">✓ Pembayaran Terverifikasi</span>
@@ -137,64 +137,64 @@
       }).join('');
     }
 
-    async function approveTransaction(txId, vetId, doctorShare) {
-      // 1. Ubah status transaksi
-      const { error: txErr } = await supabaseClient.from('transactions').update({ status: 'completed' }).eq('id', txId);
-      if (txErr) return alert('Gagal update transaksi: ' + txErr.message);
-
-      // 2. Tambahkan saldo ke dokter
-      if (vetId) {
-        const { data: vet } = await supabaseClient.from('vets').select('balance').eq('id', vetId).single();
-        const newBalance = Number(vet?.balance || 0) + Number(doctorShare);
-        await supabaseClient.from('vets').update({ balance: newBalance }).eq('id', vetId);
+    async function approveTransaction(txId) {
+      const { error } = await supabaseClient.from('transactions').update({ status: 'completed' }).eq('id', txId);
+      if (error) {
+        alert('Gagal update transaksi: ' + error.message);
+        return;
       }
-
-      alert('Transaksi LUNAS! Hak dokter (85%) telah ditambahkan ke saldo dokter.');
+      alert('Transaksi berhasil dikonfirmasi LUNAS!');
       loadDashboardData();
     }
 
     async function loadWithdrawals() {
       const container = document.getElementById('withdrawals-container');
-      const { data: wds } = await supabaseClient.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+      const { data: wds, error } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
 
-      if (!wds || wds.length === 0) {
-        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-3">Tidak ada permintaan penarikan dana tertunda.</div>`;
+      if (error || !wds || wds.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 text-xs py-3">Tidak ada permintaan penarikan dana.</div>`;
         return;
       }
 
-      container.innerHTML = wds.map(w => `
-        <div class="bg-amber-50/50 border border-amber-200 p-3 rounded-xl flex justify-between items-center text-xs">
-          <div>
-            <p class="font-bold text-gray-900">${w.vet_name}</p>
-            <p class="text-amber-800 font-bold">Minta Tarik: Rp ${Number(w.amount).toLocaleString('id-ID')}</p>
-            <p class="text-[11px] text-gray-500">Ke: ${w.bank_info}</p>
+      container.innerHTML = wds.map(w => {
+        const isPending = (w.status === 'pending');
+        let badgeStyle = 'bg-amber-100 text-amber-800';
+        if (w.status === 'approved') badgeStyle = 'bg-emerald-100 text-emerald-800';
+
+        return `
+          <div class="bg-amber-50/50 border border-amber-200 p-3.5 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <p class="font-bold text-gray-900">${w.vet_name}</p>
+              <p class="text-amber-800 font-bold">Minta Tarik: Rp ${Number(w.amount).toLocaleString('id-ID')}</p>
+              <p class="text-[11px] text-gray-500">Ke: ${w.bank_info}</p>
+              <p class="text-[10px] text-gray-400 mt-0.5">${new Date(w.created_at).toLocaleString('id-ID')}</p>
+            </div>
+            <div>
+              ${isPending ? `
+                <button onclick="processWithdrawal('${w.id}')" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition font-medium">
+                  ✓ Setujui
+                </button>
+              ` : `
+                <span class="${badgeStyle} px-2.5 py-1 rounded-full font-semibold uppercase text-[10px]">Disetujui</span>
+              `}
+            </div>
           </div>
-          <button onclick="processWithdrawal('${w.id}', '${w.vet_id}', ${w.amount})" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">
-            ✓ Setujui & Potong Saldo
-          </button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
-    async function processWithdrawal(wdId, vetId, amount) {
-      // 1. Kurangi saldo dokter
-      const { data: vet } = await supabaseClient.from('vets').select('balance').eq('id', vetId).single();
-      const currentBal = Number(vet?.balance || 0);
-
-      if (currentBal < amount) {
-        alert('Saldo dokter tidak mencukupi untuk disetujui!');
+    async function processWithdrawal(wdId) {
+      const { error } = await supabaseClient.from('withdrawals').update({ status: 'approved' }).eq('id', wdId);
+      if (error) {
+        alert('Gagal menyetujui: ' + error.message);
         return;
       }
-
-      await supabaseClient.from('vets').update({ balance: currentBal - amount }).eq('id', vetId);
-      await supabaseClient.from('withdrawals').update({ status: 'approved' }).eq('id', wdId);
-
-      alert('Penarikan dana disetujui! Silakan transfer uang ke rekening dokter.');
+      alert('Penarikan dana berhasil disetujui!');
       loadDashboardData();
     }
 
     loadDashboardData();
   </script>
 </body>
-  </html>
-  
+          </html>
+          
