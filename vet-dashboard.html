@@ -14,7 +14,7 @@
       ← Beranda
     </a>
     <h1 class="font-bold text-base">🩺 Dompet Dokter</h1>
-    <button onclick="loadVetData()" class="text-xs bg-teal-800 px-3 py-1.5 rounded-lg hover:bg-teal-900 transition">
+    <button onclick="loadVets()" class="text-xs bg-teal-800 px-3 py-1.5 rounded-lg hover:bg-teal-900 transition">
       🔄 Refresh
     </button>
   </header>
@@ -68,22 +68,36 @@
 
     let currentVet = null;
 
-    async function initVets() {
+    async function loadVets() {
       const select = document.getElementById('select-vet');
-      const { data: vets } = await supabaseClient.from('vets').select('*');
-      if (vets) {
-        select.innerHTML = '<option value="">-- Pilih Dokter --</option>' + 
-          vets.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      const { data: vets, error } = await supabaseClient.from('vets').select('*');
+      
+      if (error || !vets) {
+        select.innerHTML = '<option value="">Gagal memuat data dokter</option>';
+        return;
       }
+
+      select.innerHTML = '<option value="">-- Pilih Dokter --</option>' + 
+        vets.map(v => {
+          // Deteksi otomatis nama kolom yang dipakai di tabel vets (name / doctor_name / fullname / title)
+          const vetName = v.name || v.doctor_name || v.fullname || v.title || v.nama || 'Dokter Tanpa Nama';
+          return `<option value="${v.id}">${vetName}</option>`;
+        }).join('');
     }
 
     async function onVetSelected() {
       const vetId = document.getElementById('select-vet').value;
-      if (!vetId) return;
+      if (!vetId) {
+        currentVet = null;
+        document.getElementById('vet-balance').innerText = 'Rp 0';
+        document.getElementById('withdraw-history').innerHTML = `<div class="text-center py-6 text-gray-400 text-xs bg-white rounded-2xl border">Pilih profil dokter di atas.</div>`;
+        return;
+      }
 
       const { data: vet } = await supabaseClient.from('vets').select('*').eq('id', vetId).single();
       if (vet) {
         currentVet = vet;
+        currentVet.displayName = vet.name || vet.doctor_name || vet.fullname || vet.title || vet.nama || 'Dokter';
         document.getElementById('vet-balance').innerText = `Rp ${Number(vet.balance || 0).toLocaleString('id-ID')}`;
         loadWithdrawals(vet.id);
       }
@@ -132,7 +146,7 @@
       }
 
       const { error } = await supabaseClient.from('withdrawals').insert([
-        { vet_id: currentVet.id, vet_name: currentVet.name, amount: amount, bank_info: bank, status: 'pending' }
+        { vet_id: currentVet.id, vet_name: currentVet.displayName, amount: amount, bank_info: bank, status: 'pending' }
       ]);
 
       if (error) {
@@ -145,7 +159,7 @@
       onVetSelected();
     }
 
-    initVets();
+    loadVets();
   </script>
 </body>
 </html>
