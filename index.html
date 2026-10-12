@@ -173,20 +173,20 @@
         .insert([
           { 
             client_name: ownerName, 
-            pet_info: petInfo, 
-            service_detail: `${activeService.title} - ${activeDoctorName}`,
+            pet_info: `${petInfo} (No. HP: ${ownerPhone})`, 
+            service_detail: `${activeService.title} - ${activeDoctorName} (Keluhan: ${complaint})`,
             total_amount: activeService.price,
             status: 'pending'
           }
         ]);
 
       if (error) {
-        alert('Gagal menyimpan data booking ke database. Silakan coba lagi.');
+        alert('Gagal Supabase: ' + error.message);
         return;
       }
 
-      // 2. Format pesan WhatsApp otomatis untuk dokter/admin
-      const noAdminWhatsApp = '6281215667746'; // Ganti dengan nomor WhatsApp Anda nanti
+      // 2. Format pesan WhatsApp otomatis ke nomor Anda
+      const noAdminWhatsApp = '6281215667746'; 
       const pesan = `Halo ${activeDoctorName}, saya ingin mendaftarkan hewan peliharaan untuk konsultasi/layanan.%0A%0A*Detail Booking:*%0A- Layanan: ${activeService.title}%0A- Biaya: Rp ${activeService.price.toLocaleString('id-ID')}%0A- Nama Pemilik: ${ownerName}%0A- No. HP: ${ownerPhone}%0A- Nama Hewan: ${petInfo}%0A- Keluhan: ${complaint}%0A%0AMohon konfirmasinya, terima kasih!`;
 
       // 3. Arahkan ke WhatsApp
@@ -196,4 +196,5 @@
     loadVetsData();
   </script>
 </body>
-</html>
+  </html>
+  
