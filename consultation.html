@@ -3,57 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sesi Konsultasi - VetBook v2.0</title>
+  <title>Sesi Konsultasi Live - VetBook</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col justify-between">
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col justify-between">
 
-  <!-- Header -->
-  <header class="bg-teal-700 text-white p-4 text-center shadow-md">
-    <h1 class="font-bold text-base">🐾 Sesi Konsultasi Aktif</h1>
-    <p class="text-xs text-teal-100" id="service-title-header">Memuat rincian layanan...</p>
+  <!-- Header Clean -->
+  <header class="bg-teal-700 text-white p-3 shadow-md sticky top-0 z-10 flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-sm flex items-center gap-1.5">🐾 Ruang Konsultasi Medis</h1>
+      <p id="service-title-header" class="text-[11px] text-teal-100">Memuat rincian...</p>
+    </div>
+    <div class="bg-teal-900/60 border border-teal-400/40 rounded-xl px-2.5 py-1 text-center">
+      <p class="text-[9px] text-teal-200 uppercase tracking-wider font-semibold">Sisa Waktu</p>
+      <div id="timer-display" class="text-sm font-black text-amber-300 font-mono">20:00</div>
+    </div>
   </header>
 
-  <!-- Konten Utama -->
-  <main class="max-w-md w-full mx-auto p-4 space-y-4 my-auto">
-    
-    <!-- Kartu Timer & Status -->
-    <div class="bg-white p-6 rounded-3xl border border-teal-100 shadow-sm text-center space-y-3">
-      <div class="inline-block bg-teal-50 text-teal-800 text-xs font-bold px-3 py-1 rounded-full border border-teal-200">
-        Status: Sesi Terverifikasi & Aktif 🟢
-      </div>
-      
-      <div>
-        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Sisa Waktu Konsultasi</p>
-        <div id="timer-display" class="text-4xl font-black text-teal-900 font-mono my-2">20:00</div>
-        <p class="text-[11px] text-slate-500">Batas waktu konsultasi interaktif adalah 20 menit.</p>
-      </div>
+  <!-- Banner Info Pasien -->
+  <div class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] flex justify-between items-center text-amber-900">
+    <div>
+      <span>👤 <b id="info-client">Klien</b></span> | <span>🐾 Pasien: <b id="info-pet">Anabul</b></span>
     </div>
+    <button onclick="endSession()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px]">
+      Akhiri Sesi
+    </button>
+  </div>
 
-    <!-- Informasi Detail Klien & Pasien -->
-    <div class="bg-white p-4 rounded-2xl border border-slate-200 text-xs space-y-2 shadow-sm">
-      <p class="font-bold text-slate-900 border-b pb-1">📋 Detail Sesi Medis</p>
-      <div class="grid grid-cols-2 gap-1 text-slate-600">
-        <span class="font-semibold">Nama Klien:</span> <span id="info-client">-</span>
-        <span class="font-semibold">Nama Pasien:</span> <span id="info-pet">-</span>
-        <span class="font-semibold">Layanan:</span> <span id="info-service" class="col-span-2 text-teal-800 font-bold">-</span>
-      </div>
-    </div>
-
-    <!-- Tombol Selesai / Tutup Sesi -->
-    <div class="pt-2">
-      <button onclick="endSession()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-2xl text-xs shadow-sm transition">
-        Selesaikan & Tutup Sesi Konsultasi
-      </button>
-      <p class="text-[10px] text-center text-slate-400 mt-2">Jika konsultasi via WhatsApp / Telepon sudah selesai, silakan klik tombol di atas.</p>
-    </div>
-
+  <!-- Area Chat Message -->
+  <main class="flex-1 max-w-md w-full mx-auto p-4 overflow-y-auto space-y-3" id="chat-box" style="max-height: calc(100vh - 180px);">
+    <div class="text-center py-4 text-xs text-gray-400">Menghubungkan ke ruang obrolan...</div>
   </main>
 
-  <!-- Footer -->
-  <footer class="text-center py-4 text-[10px] text-slate-400">
-    VetBook v2.0 • Solusi Digital Praktisi Hewan & Ternak
+  <!-- Form Input Pesan (Sticky Bottom) -->
+  <footer class="bg-white border-t border-gray-200 p-3 sticky bottom-0 z-10">
+    <div class="max-w-md mx-auto space-y-2">
+      <!-- Identitas Pengirim (Role Switch) -->
+      <div class="flex items-center justify-between text-[11px] text-gray-500">
+        <span>Kirim sebagai:</span>
+        <select id="sender-role" class="border rounded-lg px-2 py-0.5 text-[11px] font-bold text-teal-800 bg-teal-50">
+          <option value="CLIENT">👤 Klien / Pemilik Pasien</option>
+          <option value="DOCTOR">🩺 Dokter Praktisi</option>
+        </select>
+      </div>
+
+      <form id="chat-form" onsubmit="sendMessage(event)" class="flex gap-2">
+        <input type="text" id="chat-input" placeholder="Tulis pesan konsultasi..." required class="flex-1 border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"/>
+        <button type="submit" id="send-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95">
+          Kirim
+        </button>
+      </form>
+    </div>
   </footer>
 
   <script>
@@ -61,32 +62,36 @@
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Ambil ID transaksi dari parameter URL (contoh: consultation.html?id=xxxx)
     const urlParams = new URLSearchParams(window.location.search);
     const transactionId = urlParams.get('id');
 
-    // Timer 20 Menit (1200 detik)
+    let clientName = 'Klien';
+    let petInfo = 'Pasien';
+    let doctorName = 'Dokter';
+
+    // Timer 20 Menit
     let totalSeconds = 20 * 60;
     const timerDisplay = document.getElementById('timer-display');
 
     const countdown = setInterval(() => {
       if (totalSeconds <= 0) {
         clearInterval(countdown);
-        timerDisplay.innerText = "Waktu Habis";
-        timerDisplay.classList.add('text-rose-600');
-        alert("Waktu konsultasi 20 menit telah selesai.");
+        timerDisplay.innerText = "HABIS";
+        alert("Waktu konsultasi 20 menit telah berakhir.");
+        document.getElementById('chat-input').disabled = true;
+        document.getElementById('send-btn').disabled = true;
         return;
       }
       totalSeconds--;
-      let minutes = Math.floor(totalSeconds / 60);
-      let seconds = totalSeconds % 60;
-      timerDisplay.innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      let m = Math.floor(totalSeconds / 60);
+      let s = totalSeconds % 60;
+      timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }, 1000);
 
-    // Ambil data transaksi dari Supabase berdasarkan ID
-    async function loadConsultationData() {
+    // Load Informasi Transaksi & Pasien
+    async function initSession() {
       if (!transactionId) {
-        document.getElementById('service-title-header').innerText = "Sesi Standar VetBook";
+        alert("ID Sesi tidak ditemukan.");
         return;
       }
 
@@ -100,24 +105,120 @@
         if (error) throw error;
 
         if (data) {
-          document.getElementById('service-title-header').innerText = data.service_detail || 'Layanan Medis';
-          document.getElementById('info-client').innerText = data.client_name || '-';
-          document.getElementById('info-pet').innerText = data.pet_info || '-';
-          document.getElementById('info-service').innerText = data.service_detail || '-';
+          clientName = data.client_name || 'Klien';
+          petInfo = data.pet_info || 'Pasien';
+          
+          const detail = (data.service_detail || '').toLowerCase();
+          doctorName = detail.includes('bintang') ? 'drh. Bintang' : 'drh. Najib';
+
+          document.getElementById('service-title-header').innerText = data.service_detail || 'Konsultasi Medis';
+          document.getElementById('info-client').innerText = clientName;
+          document.getElementById('info-pet').innerText = petInfo;
         }
       } catch (err) {
-        console.error("Gagal memuat detail sesi:", err);
+        console.error("Gagal memuat detail:", err);
       }
+
+      // Load Pesan Lama & Berlangganan Pesan Baru (Realtime)
+      loadMessages();
+      subscribeRealtimeMessages();
+    }
+
+    // Ambil histori pesan
+    async function loadMessages() {
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('transaction_id', transactionId)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        renderMessages(data);
+      }
+    }
+
+    // Render pesan ke layar chat
+    function renderMessages(msgList) {
+      const chatBox = document.getElementById('chat-box');
+      if (msgList.length === 0) {
+        chatBox.innerHTML = `
+          <div class="text-center py-8 space-y-2">
+            <span class="bg-teal-100 text-teal-800 text-[10px] font-bold px-3 py-1 rounded-full">Sesi Konsultasi Dimulai</span>
+            <p class="text-xs text-gray-400">Silakan kirim pesan untuk memulai konsultasi.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const currentRole = document.getElementById('sender-role').value;
+
+      chatBox.innerHTML = msgList.map(m => {
+        const isMe = m.sender === currentRole;
+        const timeStr = new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        return `
+          <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} my-1">
+            <span class="text-[9px] text-gray-400 mb-0.5 px-1">${m.sender_name || m.sender} • ${timeStr}</span>
+            <div class="max-w-[80%] px-3.5 py-2 rounded-2xl text-xs ${isMe ? 'bg-teal-600 text-white rounded-br-none shadow-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}">
+              ${m.text}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Kirim pesan baru ke Supabase
+    async function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      const senderRole = document.getElementById('sender-role').value;
+
+      if (!text) return;
+
+      const senderName = senderRole === 'CLIENT' ? clientName : doctorName;
+
+      input.value = '';
+
+      const { error } = await supabaseClient.from('messages').insert([
+        {
+          transaction_id: transactionId,
+          sender: senderRole,
+          sender_name: senderName,
+          text: text
+        }
+      ]);
+
+      if (error) {
+        alert("Gagal mengirim pesan: " + error.message);
+      }
+    }
+
+    // Mendengarkan pesan masuk secara Realtime
+    function subscribeRealtimeMessages() {
+      supabaseClient
+        .channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `transaction_id=eq.${transactionId}` }, payload => {
+          loadMessages();
+        })
+        .subscribe();
     }
 
     function endSession() {
       if (confirm("Apakah Anda yakin ingin mengakhiri sesi konsultasi ini?")) {
-        alert("Sesi konsultasi telah ditutup. Terima kasih!");
+        alert("Sesi konsultasi telah ditutup.");
         window.location.href = "index.html";
       }
     }
 
-    loadConsultationData();
+    // Ganti tampilan ketika role diubah
+    document.getElementById('sender-role').addEventListener('change', () => {
+      loadMessages();
+    });
+
+    initSession();
   </script>
 </body>
 </html>
