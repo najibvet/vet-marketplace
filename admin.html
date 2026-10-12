@@ -61,6 +61,10 @@
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // Nomor WhatsApp Resmi Dokter Praktisi
+    const DOCTOR_PHONE_NAJIB = '6281215667746';   // drh. Najib
+    const DOCTOR_PHONE_BINTANG = '6281230722452'; // drh. Bintang
+
     async function loadDashboardData() {
       const listContainer = document.getElementById('transactions-list');
       const countBadge = document.getElementById('trans-count');
@@ -96,22 +100,33 @@
           const platform = Math.round(total * 0.15);
           const doctor = total - platform;
 
+          // Deteksi Dokter dan Nomor WA yang Sesuai
           let targetDoc = 'drh. Najib';
+          let docPhone = DOCTOR_PHONE_NAJIB;
           const detailLower = serviceName.toLowerCase();
+          
           if (detailLower.includes('bintang')) {
             targetDoc = 'drh. Bintang';
+            docPhone = DOCTOR_PHONE_BINTANG;
           }
 
-          let formattedPhone = clientPhone.replace(/\D/g, '');
-          if (formattedPhone.startsWith('0')) {
-            formattedPhone = '62' + formattedPhone.slice(1);
+          // Format nomor telepon Klien ke format Internasional (628...)
+          let formattedClientPhone = clientPhone.replace(/\D/g, '');
+          if (formattedClientPhone.startsWith('0')) {
+            formattedClientPhone = '62' + formattedClientPhone.slice(1);
           }
 
-          // Link unik menuju halaman konsultasi klien dengan menyertakan ID transaksi
+          // Link Ruang Chat In-App 20 Menit
           const consultationLink = `https://najibvet.github.io/vet-marketplace/consultation.html?id=${t.id}`;
 
+          // Format Pesan WA untuk Klien
           const waClientMsg = encodeURIComponent(
-            `Halo Kak *${clientName}*, pembayaran untuk layanan *${serviceName}* (Pasien: *${petInfo}*) telah kami verifikasi dan berstatus *LUNAS* ✅.\n\nSesi konsultasi interaktif Anda (durasi maks. 20 menit) kini sudah dapat dimulai melalui tautan berikut:\n👉 ${consultationLink}\n\nDokter (${targetDoc}) akan segera mendampingi Anda. Terima kasih telah menggunakan VetBook v2.0! 🐾`
+            `Halo Kak *${clientName}*, pembayaran untuk *${serviceName}* (Pasien: *${petInfo}*) telah dikonfirmasi LUNAS ✅.\n\nSesi konsultasi live chat 20 menit bersama *${targetDoc}* siap dimulai melalui tautan berikut:\n👉 ${consultationLink}\n\nSilakan klik link di atas untuk masuk ke ruang obrolan. Terima kasih!`
+          );
+
+          // Format Pesan WA untuk Dokter yang Bertugas
+          const waDoctorMsg = encodeURIComponent(
+            `Halo *${targetDoc}*, ada sesi konsultasi baru yang telah LUNAS ✅.\n\n👤 *Klien:* ${clientName}\n🐾 *Pasien:* ${petInfo}\n📋 *Layanan:* ${serviceName}\n\nSilakan masuk ke ruang obrolan melalui link berikut dan ubah opsi "Kirim sebagai" menjadi Dokter Praktisi:\n👉 ${consultationLink}`
           );
 
           return `
@@ -121,7 +136,7 @@
                   <h3 class="font-bold text-xs text-gray-900">${serviceName}</h3>
                   <p class="text-[11px] text-gray-600">👤 <b>${clientName}</b> (${clientPhone})</p>
                   <p class="text-[10px] text-gray-500">🐾 Pasien: ${petInfo}</p>
-                  <p class="text-[10px] text-blue-700 font-semibold mt-0.5">🩺 Dokter Tujuan: ${targetDoc}</p>
+                  <p class="text-[10px] text-blue-700 font-semibold mt-0.5">🩺 Dokter Bertugas: <b>${targetDoc}</b></p>
                 </div>
                 <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">
                   ${isLunas ? 'LUNAS' : 'PENDING'}
@@ -133,15 +148,20 @@
                 <span class="text-gray-400 text-[10px]">(Dr: Rp ${doctor.toLocaleString('id-ID')} | Adm: Rp ${platform.toLocaleString('id-ID')})</span>
               </div>
 
-              <div class="flex flex-wrap gap-2 justify-end pt-1">
+              <div class="flex flex-col gap-1.5 pt-1">
                 ${!isLunas ? `
-                  <button onclick="markAsPaid('${t.id}')" class="bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                  <button onclick="markAsPaid('${t.id}')" class="w-full bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold py-2 rounded-lg shadow-sm">
                     ✓ Konfirmasi Lunas
                   </button>
                 ` : `
-                  <a href="https://wa.me/${formattedPhone}?text=${waClientMsg}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1">
-                    💬 Kirim Link Sesi WA (20 Menit)
-                  </a>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <a href="https://wa.me/${formattedClientPhone}?text=${waClientMsg}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold py-1.5 px-2 rounded-lg text-center shadow-sm flex items-center justify-center gap-1">
+                      📱 Kirim Link ke Klien
+                    </a>
+                    <a href="https://wa.me/${docPhone}?text=${waDoctorMsg}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1.5 px-2 rounded-lg text-center shadow-sm flex items-center justify-center gap-1">
+                      🩺 Notifikasi ke Dokter
+                    </a>
+                  </div>
                 `}
               </div>
             </div>
@@ -165,7 +185,7 @@
       if (error) {
         alert('Gagal mengonfirmasi: ' + error.message);
       } else {
-        alert('Transaksi berhasil dikonfirmasi LUNAS! Tombol kirim link sesi ke WA klien kini aktif.');
+        alert('Transaksi LUNAS! Tombol kirim link ke Klien dan WhatsApp Dokter kini aktif.');
         loadDashboardData();
       }
     }
@@ -203,5 +223,4 @@
     loadDashboardData();
   </script>
 </body>
-        </html>
-        
+</html>
