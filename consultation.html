@@ -26,7 +26,7 @@
     .incoming .message { background: #f3f4f6; color: #1f2937; border-top-left-radius: 2px; }
     .outgoing .message { background: #0f766e; color: white; border-top-right-radius: 2px; }
     
-    .message img, .message video { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
+    .message img { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
     
     footer { padding: 10px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
     .file-btn { background-color: #e5e7eb; color: #374151; border: none; padding: 10px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
@@ -52,8 +52,8 @@
   </div>
 
   <footer id="chat-footer">
-    <label for="media-input" class="file-btn" title="Kirim Foto/Video">📎</label>
-    <input type="file" id="media-input" accept="image/*,video/*" onchange="handleMediaUpload(event)" />
+    <label for="media-input" class="file-btn" title="Kirim Foto">📎</label>
+    <input type="file" id="media-input" accept="image/*" onchange="handleMediaUpload(event)" />
     
     <input type="text" id="chat-input" placeholder="Ketik pesan..." onkeypress="if(event.key === 'Enter') sendMessage()" />
     <button class="send-btn" onclick="sendMessage()">Kirim</button>
@@ -66,38 +66,55 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role') || 'client'; 
-    let sessionId = urlParams.get('id') || 'default-vetbook-room';
+    const sessionId = urlParams.get('id');
 
     let myName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
+    let clientName = 'Klien';
+    let doctorName = 'drh. Najib';
     const roleLabel = document.getElementById('user-role-label');
     const timerBox = document.getElementById('timer-box');
 
-    // Cek status sesi / transaksi di database (apakah sudah diakhiri/kadaluarsa)
-    async function checkSessionStatus() {
-      if (sessionId && sessionId !== 'default-vetbook-room') {
-        const { data, error } = await supabaseClient
-          .from('transactions')
-          .select('status, service_detail, service')
-          .eq('id', sessionId)
-          .single();
-
-        if (!error && data) {
-          if (data.status === 'Selesai' || data.status === 'Kadaluarsa' || data.status === 'Expired') {
-            lockConsultationRoom("Sesi konsultasi ini telah diakhiri dan tautan sudah kadaluarsa.");
-            return false;
-          }
-        }
+    async function initSession() {
+      if (!sessionId) {
+        alert("ID Sesi Konsultasi tidak ditemukan pada tautan.");
+        return;
       }
-      return true;
-    }
 
-    if (role === 'client') {
-      roleLabel.innerText = `Klien • Sesi Aktif (20 Menit)`;
-      timerBox.style.display = 'block';
-      startCountdown(20 * 60);
-    } else {
-      roleLabel.innerText = `Dokter • Sesi Aktif (Tanpa Batas)`;
-      timerBox.style.display = 'none';
+      // Ambil data dari tabel transactions yang sudah terbukti stabil
+      const { data, error } = await supabaseClient
+        .from('transactions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (error || !data) {
+        lockConsultationRoom("Sesi konsultasi tidak ditemukan atau tautan sudah tidak valid.");
+        return;
+      }
+
+      // Cek apakah status sudah selesai / kadaluarsa
+      if (data.status === 'Selesai' || data.status === 'Kadaluarsa') {
+        lockConsultationRoom("Sesi konsultasi ini telah diakhiri dan tautan sudah kadaluarsa.");
+        return;
+      }
+
+      clientName = data.client_name || 'Klien';
+      const service = String(data.service_detail || data.service || '').toLowerCase();
+      doctorName = service.includes('bintang') ? 'drh. Bintang' : 'drh. Najib';
+
+      if (role === 'client') {
+        myName = clientName;
+        roleLabel.innerText = `Konsultasi dengan ${doctorName} (20 Menit)`;
+        timerBox.style.display = 'block';
+        startCountdown(20 * 60);
+      } else {
+        myName = doctorName;
+        roleLabel.innerText = `Konsultasi dengan Klien: ${clientName} (Tanpa Batas)`;
+        timerBox.style.display = 'none';
+      }
+
+      fetchChatHistory();
+      setInterval(fetchChatHistory, 2500); // Sinkronisasi otomatis setiap 2.5 detik
     }
 
     function startCountdown(duration) {
@@ -117,18 +134,13 @@
     }
 
     async function endConsultation() {
-      if (confirm("Apakah Anda yakin ingin mengakhiri sesi konsultasi ini? Setelah diakhiri, tautan akan kadaluarsa.")) {
-        try {
-          if (sessionId && sessionId !== 'default-vetbook-room') {
-            await supabaseClient
-              .from('transactions')
-              .update({ status: 'Selesai' })
-              .eq('id', sessionId);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-        lockConsultationRoom("Sesi konsultasi telah diakhiri. Tautan kini kadaluarsa.");
+      if (confirm("Apakah Anda yakin ingin mengakhiri konsultasi ini? Link akan langsung kedaluarsa.")) {
+        await supabaseClient
+          .from('transactions')
+          .update({ status: 'Selesai' })
+          .eq('id', sessionId);
+
+        lockConsultationRoom("Sesi konsultasi telah diakhiri. Tautan kini kedaluarsa.");
       }
     }
 
@@ -137,135 +149,121 @@
       document.getElementById('media-input').disabled = true;
       document.getElementById('chat-footer').style.display = 'none';
       const chatBox = document.getElementById('chat-box');
-      const alertDiv = document.createElement('div');
-      alertDiv.style.cssText = "background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; margin: 10px 0;";
-      alertDiv.innerText = message;
-      chatBox.appendChild(alertDiv);
+      chatBox.innerHTML = `<div style="background: #fee2e2; color: #991b1b; padding: 14px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; margin-top: 20px;">${message}</div>`;
     }
 
-    let loadedMessageIds = new Set();
+    let lastRenderedLength = 0;
 
-    async function fetchMessages() {
-      const isActive = await checkSessionStatus();
-      if (!isActive) return;
-
+    async function fetchChatHistory() {
       try {
-        // Mengambil pesan dari tabel messages dengan berbagai deteksi kolom
         const { data, error } = await supabaseClient
-          .from('messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
+          .from('transactions')
+          .select('chat_history, status')
+          .eq('id', sessionId)
+          .single();
 
         if (!error && data) {
-          const chatBox = document.getElementById('chat-box');
-          const welcome = document.getElementById('welcome-text');
-          if (welcome && data.length > 0) welcome.remove();
-
-          if (data.length === 0) {
-            if (chatBox.children.length === 0) {
-              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada pesan. Silakan mulai berkirim pesan.</div>';
-            }
+          if (data.status === 'Selesai' || data.status === 'Kadaluarsa') {
+            lockConsultationRoom("Sesi konsultasi ini telah diakhiri dan tautan sudah kadaluarsa.");
             return;
           }
 
-          data.forEach(msg => {
-            const msgKey = msg.id || (msg.created_at + JSON.stringify(msg));
-            if (!loadedMessageIds.has(msgKey)) {
-              loadedMessageIds.add(msgKey);
-              if (welcome) welcome.remove();
+          let history = [];
+          try {
+            history = JSON.parse(data.chat_history || '[]');
+          } catch (e) {
+            history = [];
+          }
 
-              const isMine = (msg.sender_role === role);
-              const senderType = isMine ? 'outgoing' : 'incoming';
-              
-              // Cari teks dari berbagai kemungkinan nama kolom di database Anda
-              let rawContent = msg.message || msg.message_content || msg.content || msg.text || '';
-              let displayName = msg.sender_role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
-              
-              if (rawContent.startsWith('[')) {
-                const parts = rawContent.split(']: ');
-                if (parts.length > 1) {
-                  displayName = parts[0].substring(1);
-                  rawContent = parts[1];
-                }
-              }
+          if (history.length !== lastRenderedLength) {
+            lastRenderedLength = history.length;
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
 
-              appendMessageUI(rawContent, displayName, senderType, 'text');
+            if (history.length === 0) {
+              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada percakapan. Silakan mulai berkirim pesan.</div>';
+              return;
             }
-          });
+
+            history.forEach(msg => {
+              const isMine = (msg.sender === myName);
+              const senderType = isMine ? 'outgoing' : 'incoming';
+              appendMessageUI(msg.text, msg.sender, senderType, msg.type || 'text');
+            });
+          }
         }
       } catch (err) {
-        console.error("Gagal sinkronisasi:", err);
+        console.error("Gagal sinkronisasi chat:", err);
       }
     }
 
-    async function sendMessage() {
+    async function saveMessageToDB(newMessage) {
+      try {
+        // Ambil dulu history terbaru
+        const { data } = await supabaseClient
+          .from('transactions')
+          .select('chat_history')
+          .eq('id', sessionId)
+          .single();
+
+        let history = [];
+        try {
+          history = JSON.parse(data.chat_history || '[]');
+        } catch (e) {
+          history = [];
+        }
+
+        history.push(newMessage);
+
+        // Update kembali ke tabel transactions
+        await supabaseClient
+          .from('transactions')
+          .update({ chat_history: JSON.stringify(history) })
+          .eq('id', sessionId);
+
+        fetchChatHistory();
+      } catch (err) {
+        console.error("Gagal menyimpan pesan:", err);
+      }
+    }
+
+    function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
       if (!text) return;
 
       input.value = '';
-      const formattedContent = `[${myName}]: ${text}`;
+      const msgObj = {
+        sender: myName,
+        text: text,
+        type: 'text',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
 
-      // Tampilkan langsung di layar lokal agar instan
-      appendMessageUI(text, myName, 'outgoing', 'text');
-
-      try {
-        // Coba simpan ke kolom 'message'
-        let { error } = await supabaseClient.from('messages').insert([
-          { session_id: sessionId, sender_role: role, message: formattedContent }
-        ]);
-
-        // Jika gagal, coba kolom 'message_content'
-        if (error) {
-          let res = await supabaseClient.from('messages').insert([
-            { session_id: sessionId, sender_role: role, message_content: formattedContent }
-          ]);
-          error = res.error;
-        }
-
-        // Jika masih gagal, coba kolom 'content'
-        if (error) {
-          let res = await supabaseClient.from('messages').insert([
-            { session_id: sessionId, sender_role: role, content: formattedContent }
-          ]);
-          error = res.error;
-        }
-
-        if (error) {
-          console.error("Gagal simpan database:", error.message);
-        } else {
-          fetchMessages();
-        }
-      } catch (err) {
-        console.error("Gagal mengirim pesan:", err);
-      }
+      saveMessageToDB(msgObj);
     }
 
-    async function handleMediaUpload(event) {
+    function handleMediaUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const fileUrl = URL.createObjectURL(file);
-      const formattedContent = `[${myName}]: [Kirim Media Foto/Video]`;
-
-      appendMessageUI(fileUrl, myName, 'outgoing', 'image');
-
-      try {
-        await supabaseClient.from('messages').insert([
-          { session_id: sessionId, sender_role: role, message: formattedContent }
-        ]);
-        fetchMessages();
-      } catch (err) {
-        console.error("Gagal kirim media:", err);
-      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Image = e.target.result;
+        const msgObj = {
+          sender: myName,
+          text: base64Image,
+          type: 'image',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        saveMessageToDB(msgObj);
+      };
+      reader.readAsDataURL(file);
       event.target.value = '';
     }
 
     function appendMessageUI(content, name, senderType, type) {
       const chatBox = document.getElementById('chat-box');
-      const welcome = document.getElementById('welcome-text');
-      if (welcome) welcome.remove();
       
       const wrapper = document.createElement('div');
       wrapper.className = `message-wrapper ${senderType}`;
@@ -291,8 +289,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    fetchMessages();
-    setInterval(fetchMessages, 2500);
+    initSession();
   </script>
 </body>
 </html>
