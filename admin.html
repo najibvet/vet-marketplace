@@ -25,8 +25,10 @@
     .badge-pending { background-color: #fef3c7; color: #92400e; font-size: 9px; font-weight: bold; padding: 2px 8px; border-radius: 12px; display: inline-block; }
     .badge-success { background-color: #ccfbf1; color: #115e59; font-size: 9px; font-weight: bold; padding: 2px 8px; border-radius: 12px; display: inline-block; }
     
-    .btn-action { background-color: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; }
-    .btn-pay { background-color: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; }
+    .btn-action { background-color: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; width: 100%; text-align: center; }
+    .btn-pay { background-color: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; width: 100%; text-align: center; }
+    .btn-wa-client { background-color: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; text-decoration: none; display: block; text-align: center; margin-top: 4px; }
+    .btn-wa-doc { background-color: #0d9488; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; text-decoration: none; display: block; text-align: center; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -92,7 +94,6 @@
 
     async function loadAdminData() {
       try {
-        // Ambil data transaksi & withdrawals
         const { data: trans } = await supabaseClient.from('transactions').select('*').order('created_at', { ascending: false });
         const { data: withdrawals } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
 
@@ -205,6 +206,21 @@
         const amount = Number(t.total_amount || t.amount || 0);
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
+        // Tentukan nomor WhatsApp dokter berdasarkan nama layanan/dokter
+        let doctorPhone = "6281215667746"; // Nomor default drh. Najib / Admin
+        const serviceLower = service.toLowerCase();
+        if (serviceLower.includes('bintang')) {
+          doctorPhone = "6281230732161"; // Ganti dengan nomor WA drh. Bintang jika berbeda
+        }
+
+        // Format pesan WhatsApp ke Klien
+        const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai konsultasi melalui tautan berikut:\n\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
+        const waClientUrl = `https://wa.me/${clientPhone}?text=${encodeURIComponent(msgClient)}`;
+
+        // Format pesan WhatsApp ke Dokter
+        const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${clientPhone})\n🩺 *Layanan*: ${service}\n\nSilakan bergabung ke ruang konsultasi via link berikut:\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih, Dok!`;
+        const waDocUrl = `https://wa.me/${doctorPhone}?text=${encodeURIComponent(msgDoc)}`;
+
         return `
           <div class="item-box">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -214,36 +230,8 @@
             <span style="color: #1f2937; font-size: 11px;">🩺 Layanan: ${service}</span>
             <span style="color: #1e3a8a; font-weight: bold; font-size: 13px;">Biaya: Rp ${amount.toLocaleString('id-ID')}</span>
             <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
-            ${!isLunas ? `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function approveWithdrawal(id) {
-      if (!confirm("Setujui pencairan dana ini?")) return;
-      const { error } = await supabaseClient.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', id);
-      if (error) {
-        alert("Gagal memperbarui status: " + error.message);
-      } else {
-        alert("Pencairan dana berhasil disetujui!");
-        loadAdminData();
-      }
-    }
-
-    async function markAsPaid(id) {
-      if (!confirm("Ubah status pembayaran booking ini menjadi LUNAS? Saldo komisi dokter akan otomatis bertambah.")) return;
-      const { error } = await supabaseClient.from('transactions').update({ payment_status: 'PAID' }).eq('id', id);
-      if (error) {
-        alert("Gagal memperbarui status pembayaran: " + error.message);
-      } else {
-        alert("Pembayaran berhasil dikonfirmasi dan dicatat sebagai Lunas!");
-        loadAdminData();
-      }
-    }
-
-    loadAdminData();
-  </script>
-</body>
-                                                                   </html>
-                                                                   
+            
+            ${!isLunas ? 
+              `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : 
+              `<div style="display: flex; flex
+    
