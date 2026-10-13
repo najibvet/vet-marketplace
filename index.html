@@ -3,229 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VetBook - Marketplace Dokter Hewan</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>VetBook v2.0 - Booking Konsultasi & Layanan Medis</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #f3f4f6; color: #1f2937; padding-bottom: 40px; }
+    header { background-color: #0f766e; color: white; padding: 16px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header h1 { font-size: 18px; font-weight: bold; }
+    header p { font-size: 11px; color: #ccfbf1; margin-top: 4px; }
+    main { max-width: 440px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .card { background-color: white; border-radius: 16px; padding: 16px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .btn-primary { background-color: #0f766e; color: white; border: none; padding: 10px 16px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; text-decoration: none; display: block; text-align: center; width: 100%; }
+    .section-title { font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 10px; border-bottom: 1px solid #f3f4f6; padding-bottom: 6px; }
+    .nav-links { display: flex; gap: 8px; margin-bottom: 4px; }
+    .nav-btn { flex: 1; background-color: #f0fdf4; color: #0f766e; border: 1px solid #0f766e; padding: 8px; border-radius: 10px; font-size: 11px; font-weight: bold; text-align: center; text-decoration: none; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800 pb-24">
-
-  <!-- Header Clean -->
-  <header class="bg-teal-700 text-white p-4 sticky top-0 shadow-md z-10 flex justify-between items-center">
-    <div>
-      <h1 class="font-bold text-lg">🐾 VetBook v2.0</h1>
-      <p class="text-xs text-teal-100">Booking Konsultasi & Layanan Medis</p>
-    </div>
+<body>
+  <header>
+    <h1>🐾 VetBook v2.0</h1>
+    <p>Booking Konsultasi & Layanan Medis Hewan</p>
   </header>
-
-  <main class="max-w-md mx-auto p-4 space-y-6">
-    
-    <!-- Bagian Daftar Dokter Tersedia -->
-    <section class="space-y-3">
-      <h2 class="font-bold text-gray-900 text-sm uppercase tracking-wider px-1">Dokter Praktisi</h2>
-      <div id="vets-container" class="grid grid-cols-1 gap-3">
-        
-        <!-- drh. Najib -->
-        <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center border border-teal-500 text-xs">drh</div>
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">drh. Najib</h3>
-              <p class="text-teal-700 text-[11px] font-medium">Vet Consultant (Pet & Poultry)</p>
-              <p class="text-gray-400 text-[10px]">📍 Malang, Indonesia</p>
-            </div>
-          </div>
-          <span class="bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-xl font-medium border border-teal-100">Aktif</span>
-        </div>
-
-        <!-- drh. Bintang -->
-        <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center border border-indigo-500 text-xs">drh</div>
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">drh. Bintang</h3>
-              <p class="text-teal-700 text-[11px] font-medium">Praktisi Hewan Besar & Ternak</p>
-              <p class="text-gray-400 text-[10px]">📍 Pekalongan, Indonesia</p>
-            </div>
-          </div>
-          <span class="bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-xl font-medium border border-teal-100">Aktif</span>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- Bagian Layanan & Booking -->
-    <section class="space-y-3">
-      <h2 class="font-bold text-gray-900 text-sm uppercase tracking-wider px-1">Pilih Layanan Konsultasi</h2>
-      <div id="services-container" class="space-y-3">
-        
-        <!-- Layanan 1: TeleVet drh. Najib -->
-        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">TeleVet (Pet n Poultry)</h3>
-              <p class="text-xs text-teal-700 font-semibold mt-0.5">👨‍⚕️ Dokter: drh. Najib</p>
-            </div>
-            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
-              Rp 50.000
-            </span>
-          </div>
-          <button type="button" onclick="openModal('najib-1', 'TeleVet (Pet n Poultry) - drh. Najib', 50000)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm active:scale-95">
-            Booking Sekarang
-          </button>
-        </div>
-
-        <!-- Layanan 2: Vaksinasi drh. Najib -->
-        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">Vaksinasi Anabul</h3>
-              <p class="text-xs text-teal-700 font-semibold mt-0.5">👨‍⚕️ Dokter: drh. Najib</p>
-            </div>
-            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
-              Rp 200.000
-            </span>
-          </div>
-          <button type="button" onclick="openModal('najib-2', 'Vaksinasi Anabul - drh. Najib', 200000)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm active:scale-95">
-            Booking Sekarang
-          </button>
-        </div>
-
-        <!-- Layanan 3: Telemedicine drh. Bintang -->
-        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-bold text-sm text-gray-900">Konsultasi Ternak Telemedicine</h3>
-              <p class="text-xs text-indigo-700 font-semibold mt-0.5">👩‍⚕️ Dokter: drh. Bintang</p>
-            </div>
-            <span class="bg-teal-50 text-teal-800 font-bold text-xs px-2.5 py-1 rounded-lg">
-              Rp 50.000
-            </span>
-          </div>
-          <button type="button" onclick="openModal('bintang-1', 'Konsultasi Ternak Telemedicine - drh. Bintang', 50000)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 rounded-xl text-xs transition shadow-sm active:scale-95">
-            Booking Sekarang
-          </button>
-        </div>
-
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Modal Booking -->
-  <div id="booking-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modal-service-title" class="font-bold text-gray-900 text-base">Formulir Booking</h3>
-        <button type="button" onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
-      </div>
-      
-      <!-- Info Panduan Pembayaran / Rekening -->
-      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs space-y-1">
-        <p class="font-bold text-amber-900">💳 Panduan Pembayaran:</p>
-        <p class="text-amber-800">Silakan transfer biaya layanan ke rekening berikut:</p>
-        <p class="font-mono font-bold text-gray-900">BCA: 1234567890 a.n. drh. Najib</p>
-      </div>
-
-      <form id="booking-form" onsubmit="submitBooking(event)" class="space-y-3">
-        <input type="hidden" id="selected-service-id">
-        <input type="hidden" id="selected-service-price">
-        <input type="hidden" id="selected-service-name">
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Klien / Pemilik</label>
-          <input type="text" id="client-name" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: Budi Santoso">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">No. WhatsApp (Aktif)</label>
-          <input type="tel" id="client-phone" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: 081234567890">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Nama & Jenis Anabul / Pasien</label>
-          <input type="text" id="pet-info" required class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" placeholder="Cth: Miko (Kucing Persia)">
-        </div>
-
-        <div class="pt-2">
-          <button type="submit" id="submit-btn" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-sm">
-            Konfirmasi & Kirim Pesanan
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    function openModal(id, title, price) {
-      document.getElementById('selected-service-id').value = id;
-      document.getElementById('selected-service-name').value = title;
-      document.getElementById('selected-service-price').value = price;
-      document.getElementById('modal-service-title').innerText = "Booking: " + title;
-      document.getElementById('booking-modal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-      document.getElementById('booking-modal').classList.add('hidden');
-    }
-
-    async function submitBooking(e) {
-      e.preventDefault();
-      
-      const submitBtn = document.getElementById('submit-btn');
-      submitBtn.innerText = "Menyimpan...";
-      submitBtn.disabled = true;
-
-      const serviceId = document.getElementById('selected-service-id').value;
-      const serviceDetail = document.getElementById('selected-service-name').value;
-      const amount = Number(document.getElementById('selected-service-price').value);
-      const clientName = document.getElementById('client-name').value;
-      const clientPhone = document.getElementById('client-phone').value;
-      const petInfo = document.getElementById('pet-info').value;
-
-      const platformFee = Math.round(amount * 0.15);
-
-      try {
-        const { data, error: insertError } = await supabaseClient.from('transactions').insert([
-          {
-            service_id: serviceId,
-            service_detail: serviceDetail,
-            total_amount: amount,
-            platform_fee: platformFee,
-            client_name: clientName,
-            client_phone: clientPhone,
-            pet_info: petInfo,
-            payment_status: 'PENDING',
-            status: 'pending'
-          }
-        ]).select();
-
-        if (insertError) {
-          alert('GAGAL SIMPAN: ' + insertError.message);
-          submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
-          submitBtn.disabled = false;
-          return;
-        }
-
-        console.log("Berhasil tersimpan:", data);
-
-      } catch (err) {
-        alert('ERROR SISTEM: ' + err.message);
-        submitBtn.innerText = "Konfirmasi & Kirim Pesanan";
-        submitBtn.disabled = false;
-        return;
-      }
-
-      // Arahkan ke WhatsApp Admin
-      const adminPhone = '6281215667746';
-      let waText = `Halo Admin VetBook, saya ingin konfirmasi pembayaran booking layanan:\n\n*Layanan:* ${serviceDetail}\n*Nama:* ${clientName} (${clientPhone})\n*Pasien:* ${petInfo}\n*Total Biaya:* Rp ${amount.toLocaleString('id-ID')}\n\nMohon verifikasi pembayarannya. Terima kasih.`;
-      
-      window.location.href = `https://wa.me/${adminPhone}?text=${encodeURIComponent(waText)}`;
-    }
-  </script>
-</body>
-  </html>
   
+  <main>
+    <div class="nav-links">
+      <a href="vet-dashboard.html" class="nav-btn">🩺 Dompet Dokter</a>
+      <a href="admin.html" class="nav-btn">⚙️ Admin Panel</a>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Dokter Praktisi Tersedia</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="background: #f9fafb; padding: 10px; border-radius: 10px; border: 1px solid #e5e7eb;">
+          <strong>drh. Najib</strong>
+          <p style="font-size: 11px; color: #4b5563;">Vet Consultant (Pet & Poultry)</p>
+          <p style="font-size: 10px; color: #0f766e; margin-top: 4px;">📍 Malang, Indonesia</p>
+        </div>
+        <div style="background: #f9fafb; padding: 10px; border-radius: 10px; border: 1px solid #e5e7eb;">
+          <strong>drh. Bintang</strong>
+          <p style="font-size: 11px; color: #4b5563;">Praktisi Hewan Besar & Ternak</p>
+          <p style="font-size: 10px; color: #0f766e; margin-top: 4px;">📍 Pekalongan, Indonesia</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Layanan Konsultasi TeleVet</div>
+      <p style="font-size: 12px; color: #4b5563; margin-bottom: 10px;">Pilih layanan konsultasi langsung dengan dokter hewan profesional kami secara online.</p>
+      <a href="vet-dashboard.html" class="btn-primary">Mulai Konsultasi & Layanan</a>
+    </div>
+  </main>
+</body>
+</html>
