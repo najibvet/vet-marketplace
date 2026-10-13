@@ -91,29 +91,20 @@
 
     async function loadAdminData() {
       try {
-        console.log("Mengambil data dari Supabase...");
-        
-        // Ambil data transaksi
-        const { data: trans, error: errTrans } = await supabaseClient.from('transactions').select('*');
-        if (errTrans) {
-          console.error("Error transactions:", errTrans);
-          document.getElementById('admin-bookings-list').innerHTML = `<p style="color: red; text-align: center; font-size: 11px;">Error DB Transaksi: ${errTrans.message}</p>`;
-        }
+        let trans = [];
+        let withdrawals = [];
 
-        // Ambil data withdrawals
-        const { data: withdrawals, error: errW } = await supabaseClient.from('withdrawals').select('*');
-        if (errW) {
-          console.error("Error withdrawals:", errW);
-          document.getElementById('admin-withdrawals-list').innerHTML = `<p style="color: red; text-align: center; font-size: 11px;">Error DB Withdrawals: ${errW.message}</p>`;
-        }
+        const resTrans = await supabaseClient.from('transactions').select('*');
+        if (!resTrans.error) trans = resTrans.data || [];
 
-        renderFinancialStats(trans || [], withdrawals || []);
-        if (!errW) renderWithdrawals(withdrawals || []);
-        if (!errTrans) renderBookings(trans || []);
+        const resW = await supabaseClient.from('withdrawals').select('*');
+        if (!resW.error) withdrawals = resW.data || [];
 
+        renderFinancialStats(trans, withdrawals);
+        renderWithdrawals(withdrawals);
+        renderBookings(trans);
       } catch (err) {
-        console.error("Koneksi gagal:", err);
-        alert("Terjadi kesalahan koneksi ke database: " + err.message);
+        console.error("Error loading admin data:", err);
       }
     }
 
@@ -216,7 +207,6 @@
       };
 
       const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-      const consultationUrl = baseUrl + 'consultation.html';
 
       container.innerHTML = transList.map(t => {
         const payStatus = String(t.payment_status || t.status || 'PENDING').toUpperCase();
@@ -239,10 +229,14 @@
           doctorPhone = doctorPhones["bintang"];
         }
 
-        const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai sesi konsultasi interaktif Anda (durasi 20 menit) melalui tautan berikut:\n\n🔗 ${consultationUrl}?role=client\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
+        // Link spesifik menggunakan ID transaksi (t.id) agar tidak error ID Sesi
+        const clientConsultUrl = `${baseUrl}consultation.html?id=${t.id}&role=client`;
+        const doctorConsultUrl = `${baseUrl}consultation.html?id=${t.id}&role=doctor`;
+
+        const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai sesi konsultasi interaktif Anda (durasi 20 menit) melalui tautan berikut:\n\n🔗 ${clientConsultUrl}\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
         const waClientUrl = `https://wa.me/${clientPhone}?text=${encodeURIComponent(msgClient)}`;
 
-        const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${t.client_phone || '-'})\n🩺 *Layanan*: ${service}\n\nSilakan buka ruang konsultasi (akses dokter tidak terbatas) melalui tautan berikut:\n🔗 ${consultationUrl}?role=doctor\n\nTerima kasih, Dok!`;
+        const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${t.client_phone || '-'})\n🩺 *Layanan*: ${service}\n\nSilakan buka ruang konsultasi (akses dokter tidak terbatas) melalui tautan berikut:\n🔗 ${doctorConsultUrl}\n\nTerima kasih, Dok!`;
         const waDocUrl = `https://wa.me/${doctorPhone}?text=${encodeURIComponent(msgDoc)}`;
 
         return `
@@ -292,4 +286,5 @@
     loadAdminData();
   </script>
 </body>
-</html>
+  </html>
+  
