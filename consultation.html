@@ -66,23 +66,18 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role') || 'client'; 
-    let sessionId = urlParams.get('id');
-
-    // PERHATIAN: Jika parameter id tidak ada di URL, kita buat default agar tetap satu kamar uji coba
-    if (!sessionId) {
-      sessionId = 'default-vetbook-room';
-    }
+    let sessionId = urlParams.get('id') || 'default-vetbook-room';
 
     let myName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
     const roleLabel = document.getElementById('user-role-label');
     const timerBox = document.getElementById('timer-box');
 
     if (role === 'client') {
-      roleLabel.innerText = `Klien • Sesi: ${sessionId.substring(0,8)}... (20 Menit)`;
+      roleLabel.innerText = `Klien • Sesi Aktif (20 Menit)`;
       timerBox.style.display = 'block';
       startCountdown(20 * 60);
     } else {
-      roleLabel.innerText = `Dokter • Sesi: ${sessionId.substring(0,8)}... (Tanpa Batas)`;
+      roleLabel.innerText = `Dokter • Sesi Aktif (Tanpa Batas)`;
       timerBox.style.display = 'none';
     }
 
@@ -103,7 +98,7 @@
       }, 1000);
     }
 
-    let processedMessageIds = new Set();
+    let loadedMessageIds = new Set();
 
     async function fetchMessages() {
       try {
@@ -120,24 +115,38 @@
 
           if (data.length === 0) {
             if (chatBox.children.length === 0) {
-              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada pesan. Sesi ID: ' + sessionId.substring(0,8) + '</div>';
+              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada pesan. Sсилаkan mulai berkirim pesan.</div>';
             }
             return;
           }
 
           data.forEach(msg => {
             const msgKey = msg.id || (msg.created_at + msg.message_content);
-            if (!processedMessageIds.has(msgKey)) {
-              processedMessageIds.add(msgKey);
+            if (!loadedMessageIds.has(msgKey)) {
+              loadedMessageIds.add(msgKey);
               if (welcome) welcome.remove();
 
+              // Tentukan apakah pesan ini dari kita atau orang lain berdasarkan sender_role
               const isMine = (msg.sender_role === role);
               const senderType = isMine ? 'outgoing' : 'incoming';
-              const displayName = msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien');
+              
+              // Format isi pesan: jika formatnya [Nama]: Pesan, kita pisahkan atau tampilkan langsung
+              let content = msg.message_content;
+              let displayName = msg.sender_role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
+              
+              if (content.startsWith('[')) {
+                const parts = content.split(']: ');
+                if (parts.length > 1) {
+                  displayName = parts[0].substring(1);
+                  content = parts[1];
+                }
+              }
 
-              appendMessageUI(msg.message_content, displayName, senderType, msg.message_type || 'text');
+              appendMessageUI(content, displayName, senderType, 'text');
             }
           });
+        } else if (error) {
+          console.error("Supabase select error:", error.message);
         }
       } catch (err) {
         console.error("Gagal sinkronisasi:", err);
@@ -151,22 +160,28 @@
 
       input.value = '';
 
+      // Format string universal yang aman untuk kolom database standar
+      const formattedContent = `[${myName}]: ${text}`;
+
       // Tampilkan langsung di layar lokal
       appendMessageUI(text, myName, 'outgoing', 'text');
 
       try {
-        await supabaseClient.from('messages').insert([
+        const { error } = await supabaseClient.from('messages').insert([
           {
             session_id: sessionId,
-            sender_name: myName,
             sender_role: role,
-            message_content: text,
-            message_type: 'text'
+            message_content: formattedContent
           }
         ]);
-        fetchMessages();
+
+        if (error) {
+          alert("Gagal menyimpan ke database: " + error.message);
+        } else {
+          fetchMessages();
+        }
       } catch (err) {
-        alert("Gagal mengirim pesan ke database. Cek koneksi.");
+        console.error("Kesalahan jaringan:", err);
       }
     }
 
@@ -174,20 +189,17 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      const isVideo = file.type.startsWith('video');
-      const fileType = isVideo ? 'video' : 'image';
       const fileUrl = URL.createObjectURL(file);
+      const formattedContent = `[${myName}]: [Kirim Media Foto/Video]`;
 
-      appendMessageUI(fileUrl, myName, 'outgoing', fileType);
+      appendMessageUI(fileUrl, myName, 'outgoing', 'image');
 
       try {
         await supabaseClient.from('messages').insert([
           {
             session_id: sessionId,
-            sender_name: myName,
             sender_role: role,
-            message_content: fileUrl,
-            message_type: fileType
+            message_content: formattedContent
           }
         ]);
         fetchMessages();
@@ -213,17 +225,12 @@
       const msgDiv = document.createElement('div');
       msgDiv.className = 'message';
 
-      if (type === 'text') {
-        msgDiv.innerText = content;
-      } else if (type === 'image') {
+      if (type === 'image') {
         const img = document.createElement('img');
         img.src = content;
         msgDiv.appendChild(img);
-      } else if (type === 'video') {
-        const vid = document.createElement('video');
-        vid.src = content;
-        vid.controls = true;
-        msgDiv.appendChild(vid);
+      } else {
+        msgDiv.innerText = content;
       }
 
       wrapper.appendChild(msgDiv);
@@ -231,7 +238,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Jalankan awal dan periksa pesan otomatis setiap 2 detik
+    // Ambil pesan awal, lalu perbarui otomatis setiap 2 detik
     fetchMessages();
     setInterval(fetchMessages, 2000);
   </script>
