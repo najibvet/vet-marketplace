@@ -3,311 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ruang Konsultasi Live - VetBook</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Ruang Konsultasi - VetBook v2.0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #f3f4f6; color: #1f2937; display: flex; flex-direction: column; height: 100vh; }
+    header { background-color: #0f766e; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header h1 { font-size: 14px; font-weight: bold; }
+    #timer-box { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+    .chat-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+    .message { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+    .message.incoming { background: #f3f4f6; align-self: flex-start; color: #1f2937; }
+    .message.outgoing { background: #0f766e; align-self: flex-end; color: white; }
+    footer { padding: 12px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; }
+    input { flex: 1; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 14px; font-size: 13px; outline: none; }
+    button { background-color: #0f766e; color: white; border: none; padding: 0 16px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 13px; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col justify-between">
-
-  <!-- Header Clean -->
-  <header class="bg-teal-700 text-white p-3 shadow-md sticky top-0 z-10 flex justify-between items-center">
+<body>
+  <header>
     <div>
-      <h1 class="font-bold text-sm flex items-center gap-1.5">🐾 Ruang Konsultasi Medis</h1>
-      <p id="service-title-header" class="text-[11px] text-teal-100">Memuat rincian...</p>
+      <h1 id="session-title">🩺 Ruang Konsultasi VetBook</h1>
+      <p id="user-role-label" style="font-size: 10px; color: #ccfbf1;"></p>
     </div>
-    <div class="bg-teal-900/60 border border-teal-400/40 rounded-xl px-2.5 py-1 text-center min-w-[80px]">
-      <p id="timer-label" class="text-[9px] text-teal-200 uppercase tracking-wider font-semibold">Sisa Waktu</p>
-      <div id="timer-display" class="text-sm font-black text-amber-300 font-mono">20:00</div>
-    </div>
+    <div id="timer-box" style="display: none;">⏳ Sisa: <span id="time-left">20:00</span></div>
   </header>
 
-  <!-- Banner Info Pasien & Status Peran -->
-  <div class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] flex justify-between items-center text-amber-900 sticky top-[57px] z-10">
-    <div>
-      <span>👤 <b id="info-client">Klien</b></span> | <span>🐾 <b id="info-pet">Pasien</b></span>
-    </div>
-    <div class="flex items-center gap-2">
-      <span id="role-badge" class="bg-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">Memuat...</span>
-      <button onclick="endSession()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2 py-0.5 rounded-lg text-[10px]">
-        Akhiri Sesi
-      </button>
-    </div>
+  <div class="chat-container" id="chat-box">
+    <div class="message incoming">Halo! Selamat datang di Ruang Konsultasi VetBook. Silakan sampaikan keluhan hewan kesayangan Anda kepada dokter.</div>
   </div>
 
-  <!-- Area Chat Message -->
-  <main class="flex-1 max-w-md w-full mx-auto p-4 overflow-y-auto space-y-3 mb-20" id="chat-box">
-    <div class="text-center py-12 text-xs text-gray-400">Memeriksa status sesi...</div>
-  </main>
-
-  <!-- Form Input Pesan & Lampiran File -->
-  <footer class="bg-white border-t border-gray-200 p-3 fixed bottom-0 left-0 right-0 z-20 shadow-lg">
-    <div class="max-w-md mx-auto space-y-2">
-      <!-- Indicator Preview File Sebelum Kirim -->
-      <div id="file-preview-container" class="hidden flex items-center justify-between bg-teal-50 border border-teal-200 p-2 rounded-xl text-xs text-teal-800">
-        <span id="file-preview-name" class="truncate max-w-[200px] font-medium">📷 Foto terpilih</span>
-        <button type="button" onclick="cancelFileSelection()" class="text-rose-600 font-bold px-2">✕ Batal</button>
-      </div>
-
-      <form id="chat-form" onsubmit="sendMessage(event)" class="flex items-center gap-2">
-        <!-- Tombol Lampirkan Foto / Video -->
-        <label for="file-input" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-xl transition border border-gray-300 flex items-center justify-center">
-          📷/🎥
-          <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="handleFileSelect(event)" />
-        </label>
-
-        <input type="text" id="chat-input" placeholder="Tulis pesan atau kirim media..." class="flex-1 border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"/>
-        
-        <button type="submit" id="send-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow-sm">
-          Kirim
-        </button>
-      </form>
-    </div>
+  <footer>
+    <input type="text" id="chat-input" placeholder="Ketik pesan..." onkeypress="if(event.key === 'Kirim') sendMessage()" />
+    <button onclick="sendMessage()">Kirim</button>
   </footer>
 
   <script>
-    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     const urlParams = new URLSearchParams(window.location.search);
-    const transactionId = urlParams.get('id');
-    const urlRole = urlParams.get('role');
+    const sessionId = urlParams.get('id');
+    const role = urlParams.get('role') || 'client';
 
-    let clientName = 'Klien';
-    let petInfo = 'Pasien';
-    let doctorName = 'Dokter';
-    let activeSender = (urlRole === 'doctor') ? 'DOCTOR' : 'CLIENT';
-    let activeSenderName = 'Klien';
+    if (!sessionId) {
+      alert("ID Sesi konsultasi tidak ditemukan pada tautan.");
+    }
 
-    let selectedFileBase64 = null;
-    let selectedFileType = null; // 'image' atau 'video'
-
-    // Pengaturan Timer
-    const timerLabel = document.getElementById('timer-label');
-    const timerDisplay = document.getElementById('timer-display');
-
-    if (activeSender === 'DOCTOR') {
-      timerLabel.innerText = "Status Sesi";
-      timerDisplay.innerText = "AKTIF 🟢";
-      timerDisplay.className = "text-xs font-bold text-emerald-300 font-sans my-0.5";
+    // Atur Label Peran & Timer
+    if (role === 'client') {
+      document.getElementById('user-role-label').innerText = 'Mode Klien (Batas Waktu: 20 Menit)';
+      document.getElementById('timer-box').style.display = 'block';
+      startCountdown(20 * 60); // 20 Menit untuk Klien
     } else {
-      let totalSeconds = 20 * 60;
-      const countdown = setInterval(() => {
-        if (totalSeconds <= 0) {
-          clearInterval(countdown);
-          timerDisplay.innerText = "HABIS";
-          lockSession("Waktu konsultasi 20 menit telah berakhir.");
-          return;
+      document.getElementById('user-role-label').innerText = 'Mode Dokter Praktisi (Akses Tidak Terbatas)';
+      document.getElementById('timer-box').style.display = 'none';
+    }
+
+    function startCountdown(duration) {
+      let timer = duration, minutes, seconds;
+      const display = document.getElementById('time-left');
+      const interval = setInterval(function () {
+        minutes = parseInt(timer / 60, 10);
+        seconds = parseInt(timer % 60, 10);
+
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        display.textContent = minutes + ":" + seconds;
+
+        if (--timer < 0) {
+          clearInterval(interval);
+          alert("Waktu konsultasi 20 menit telah selesai.");
+          document.getElementById('chat-input').disabled = true;
         }
-        totalSeconds--;
-        let m = Math.floor(totalSeconds / 60);
-        let s = totalSeconds % 60;
-        timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
       }, 1000);
     }
 
-    async function initSession() {
-      if (!transactionId) {
-        alert("ID Sesi tidak valid.");
-        window.location.href = "index.html";
-        return;
-      }
-
-      try {
-        const { data, error } = await supabaseClient
-          .from('transactions')
-          .select('*')
-          .eq('id', transactionId)
-          .single();
-
-        if (error) throw error;
-
-        if (data) {
-          if (data.session_status === 'closed') {
-            showClosedScreen();
-            return;
-          }
-
-          clientName = data.client_name || 'Klien';
-          petInfo = data.pet_info || 'Pasien';
-          
-          const detail = (data.service_detail || '').toLowerCase();
-          doctorName = detail.includes('bintang') ? 'drh. Bintang' : 'drh. Najib';
-
-          document.getElementById('service-title-header').innerText = data.service_detail || 'Konsultasi Medis';
-          document.getElementById('info-client').innerText = clientName;
-          document.getElementById('info-pet').innerText = petInfo;
-        }
-      } catch (err) {
-        console.error("Gagal memuat detail:", err);
-      }
-
-      setupRoleBadge();
-      loadMessages();
-      subscribeRealtimeMessages();
-    }
-
-    function setupRoleBadge() {
-      const badge = document.getElementById('role-badge');
-      if (activeSender === 'DOCTOR') {
-        activeSenderName = doctorName;
-        badge.innerText = `🩺 ${doctorName}`;
-        badge.className = "bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md";
-      } else {
-        activeSenderName = clientName;
-        badge.innerText = `👤 ${clientName}`;
-        badge.className = "bg-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-md";
-      }
-    }
-
-    // Handle Pilihan File (Foto/Video)
-    function handleFileSelect(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      if (file.size > 15 * 1024 * 1024) { // Batas 15 MB
-        alert("Ukuran file terlalu besar. Maksimal 15 MB.");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        selectedFileBase64 = event.target.result;
-        selectedFileType = file.type.startsWith('video') ? 'video' : 'image';
-
-        document.getElementById('file-preview-name').innerText = (selectedFileType === 'video' ? '🎥 ' : '📷 ') + file.name;
-        document.getElementById('file-preview-container').classList.remove('hidden');
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function cancelFileSelection() {
-      selectedFileBase64 = null;
-      selectedFileType = null;
-      document.getElementById('file-input').value = '';
-      document.getElementById('file-preview-container').classList.add('hidden');
-    }
-
-    async function loadMessages() {
-      let query = supabaseClient.from('messages').select('*').order('created_at', { ascending: true });
-      if (transactionId) query = query.eq('transaction_id', transactionId);
-
-      const { data, error } = await query;
-      if (!error) renderMessages(data || []);
-    }
-
-    function renderMessages(msgList) {
-      const chatBox = document.getElementById('chat-box');
-      if (msgList.length === 0) {
-        chatBox.innerHTML = `
-          <div class="text-center py-12 space-y-2">
-            <span class="bg-teal-100 text-teal-800 text-[10px] font-bold px-3 py-1 rounded-full">Sesi Obrolan Aktif</span>
-            <p class="text-xs text-gray-400">Belum ada pesan. Silakan kirim pesan atau foto/video pasien.</p>
-          </div>
-        `;
-        return;
-      }
-
-      chatBox.innerHTML = msgList.map(m => {
-        const isMe = m.sender === activeSender;
-        const timeStr = new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-        let contentHtml = '';
-
-        // Deteksi apakah isi pesan berupa Foto / Video (Base64 atau URL)
-        if (m.text && m.text.startsWith('data:image/')) {
-          contentHtml = `<img src="${m.text}" class="rounded-xl max-w-[220px] max-h-[220px] object-cover cursor-pointer my-1" onclick="window.open('${m.text}')"/>`;
-        } else if (m.text && m.text.startsWith('data:video/')) {
-          contentHtml = `<video src="${m.text}" controls class="rounded-xl max-w-[220px] max-h-[220px] my-1"></video>`;
-        } else {
-          contentHtml = `<div>${m.text}</div>`;
-        }
-
-        return `
-          <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} my-1.5">
-            <span class="text-[9px] text-gray-400 mb-0.5 px-1">${m.sender_name || m.sender} • ${timeStr}</span>
-            <div class="max-w-[85%] px-3.5 py-2 rounded-2xl text-xs ${isMe ? 'bg-teal-600 text-white rounded-br-none shadow-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}">
-              ${contentHtml}
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendMessage(e) {
-      e.preventDefault();
+    function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
+      if (!text) return;
 
-      if (!text && !selectedFileBase64) return;
-
-      const payloadText = selectedFileBase64 ? selectedFileBase64 : text;
+      const chatBox = document.getElementById('chat-box');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message outgoing';
+      msgDiv.innerText = text;
+      chatBox.appendChild(msgDiv);
 
       input.value = '';
-      cancelFileSelection();
-
-      const { error } = await supabaseClient.from('messages').insert([
-        {
-          transaction_id: transactionId,
-          sender: activeSender,
-          sender_name: activeSenderName,
-          text: payloadText
-        }
-      ]);
-
-      if (error) alert("Gagal mengirim pesan: " + error.message);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    function subscribeRealtimeMessages() {
-      supabaseClient
-        .channel('public:messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `transaction_id=eq.${transactionId}` }, payload => {
-          loadMessages();
-        })
-        .subscribe();
-    }
-
-    async function endSession() {
-      if (confirm("Apakah Anda yakin ingin mengakhiri sesi konsultasi ini? Setelah ditutup, link ini tidak dapat digunakan kembali.")) {
-        await closeSessionInDatabase();
-      }
-    }
-
-    async function lockSession(reason) {
-      alert(reason);
-      await closeSessionInDatabase();
-    }
-
-    async function closeSessionInDatabase() {
-      try {
-        await supabaseClient
-          .from('transactions')
-          .update({ session_status: 'closed' })
-          .eq('id', transactionId);
-      } catch (err) {
-        console.error("Gagal menutup status sesi:", err);
-      }
-      showClosedScreen();
-    }
-
-    function showClosedScreen() {
-      document.body.innerHTML = `
-        <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-md max-w-sm w-full space-y-3">
-            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">🔒</div>
-            <h2 class="font-bold text-gray-900 text-base">Sesi Konsultasi Telah Berakhir</h2>
-            <p class="text-xs text-gray-500">Tautan konsultasi ini sudah ditutup dan tidak dapat diakses kembali demi privasi dan keamanan medis.</p>
-            <a href="index.html" class="block bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition">
-              Kembali ke Beranda VetBook
-            </a>
-          </div>
-        </div>
-      `;
-    }
-
-    initSession();
   </script>
 </body>
 </html>
