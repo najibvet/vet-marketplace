@@ -45,7 +45,7 @@
   <div class="chat-container" id="chat-box">
     <div class="message-wrapper incoming">
       <span class="sender-name">Sistem VetBook</span>
-      <div class="message">Halo! Selamat datang di Ruang Konsultasi VetBook. Sesi konsultasi privat dimulai. Silakan sampaikan keluhan hewan kesayangan Anda. 🐾</div>
+      <div class="message">Halo! Sesi konsultasi privat telah terhubung. Silakan sampaikan keluhan Anda. 🐾</div>
     </div>
   </div>
 
@@ -53,57 +53,38 @@
     <label for="media-input" class="file-btn" title="Kirim Foto/Video">📎</label>
     <input type="file" id="media-input" accept="image/*,video/*" onchange="handleMediaUpload(event)" />
     
-    <input type="text" id="chat-input" placeholder="Ketik pesan atau konsultasi..." onkeypress="if(event.key === 'Enter') sendMessage()" />
+    <input type="text" id="chat-input" placeholder="Ketik pesan..." onkeypress="if(event.key === 'Enter') sendMessage()" />
     <button class="send-btn" onclick="sendMessage()">Kirim</button>
   </footer>
 
   <script>
+    // Konfigurasi Supabase
     const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // Ambil parameter URL (role, id sesi, nama pengirim)
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role') || 'client'; // 'client' atau 'doctor'
-    const sessionId = urlParams.get('id');
+    const sessionId = urlParams.get('id') || 'general-room';
+    
+    // Tentukan Nama Pengirim (Sender Name) dari URL untuk ditaruh di database
+    let senderName = urlParams.get('name');
+    if (!senderName) {
+      senderName = role === 'doctor' ? 'Dokter Hewan' : 'Klien';
+    }
 
     const roleLabel = document.getElementById('user-role-label');
     const timerBox = document.getElementById('timer-box');
 
-    let clientName = 'Klien';
-    let doctorName = 'drh. Najib'; // Default
-
-    // Inisialisasi awal & Ambil detail transaksi dari database berdasarkan ID
-    async function initConsultation() {
-      if (sessionId) {
-        const { data: trans, error } = await supabaseClient
-          .from('transactions')
-          .select('*')
-          .eq('id', sessionId)
-          .single();
-
-        if (!error && trans) {
-          clientName = trans.client_name || 'Klien';
-          const service = String(trans.service_detail || trans.service || '').toLowerCase();
-          if (service.includes('bintang')) {
-            doctorName = 'drh. Bintang';
-          } else {
-            doctorName = 'drh. Najib';
-          }
-        }
-      }
-
-      // Atur label header sesuai peran
-      if (role === 'client') {
-        roleLabel.innerText = `Konsultasi dengan ${doctorName} (Batas Waktu: 20 Menit)`;
-        timerBox.style.display = 'block';
-        startCountdown(20 * 60);
-      } else {
-        roleLabel.innerText = `Konsultasi dengan Klien: ${clientName} (Akses Tidak Terbatas)`;
-        timerBox.style.display = 'none';
-      }
-
-      fetchMessages();
-      setupRealtimeChat();
+    // Pengaturan Header Berdasarkan Peran
+    if (role === 'client') {
+      roleLabel.innerText = `Halo ${senderName}, Batas Waktu Konsultasi: 20 Menit`;
+      timerBox.style.display = 'block';
+      startCountdown(20 * 60);
+    } else {
+      roleLabel.innerText = `Halo Dokter ${senderName}, Akses Tidak Terbatas`;
+      timerBox.style.display = 'none';
     }
 
     function startCountdown(duration) {
@@ -127,129 +108,87 @@
       }, 1000);
     }
 
-    // Ambil riwayat chat dari Supabase
-    async function fetchMessages() {
-      if (!sessionId) return;
+    // --- LOGIKA UTAMA REALTIME CHAT ---
+
+    // 1. Ambil Riwayat Pesan Saat Halaman Dimuat
+    async function loadChatHistory() {
+      const chatBox = document.getElementById('chat-box');
+      chatBox.innerHTML = '<div class="message incoming" style="font-style: italic; font-size: 11px; text-align: center; color: #9ca3af;">Memuat riwayat chat...</div>';
+      
       const { data, error } = await supabaseClient
         .from('messages')
         .select('*')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
+      chatBox.innerHTML = `
+        <div class="message-wrapper incoming">
+          <span class="sender-name">Sistem VetBook</span>
+          <div class="message">Halo! Sesi konsultasi privat di ruang ${sessionId} telah terhubung. 🐾</div>
+        </div>
+      `;
+
       if (!error && data) {
-        const chatBox = document.getElementById('chat-box');
-        chatBox.innerHTML = `
-          <div class="message-wrapper incoming">
-            <span class="sender-name">Sistem VetBook</span>
-            <div class="message">Halo! Sesi konsultasi privat dengan ${doctorName} telah terhubung. Silakan mulai percakapan. 🐾</div>
-          </div>
-        `;
-        
         data.forEach(msg => {
-          const isMe = msg.sender_role === role;
-          const senderDisplay = msg.sender_role === 'doctor' ? doctorName : clientName;
-          appendMessageUI(msg.message_content, senderDisplay, isMe ? 'outgoing' : 'incoming', msg.message_type || 'text');
+          const senderType = msg.sender_name === senderName ? 'outgoing' : 'incoming';
+          appendMessageUI(msg.message_content, msg.sender_name, senderType, msg.message_type || 'text');
         });
       }
     }
 
-    // Real-time listener untuk menerima pesan masuk
-    function setupRealtimeChat() {
-      if (!sessionId) return;
+    // 2. Berlangganan Perubahan Database (Supabase Realtime)
+    function setupRealtimeSubscription() {
       supabaseClient
-        .channel('chat-room-' + sessionId)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `session_id=eq.${sessionId}` }, payload => {
+        .channel('realtime:messages:' + sessionId) // Channel unik per sesi
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages', 
+            filter: 'session_id=eq.' + sessionId // Hanya pesan di sesi ini
+        }, payload => {
           const newMsg = payload.new;
-          if (newMsg.sender_role !== role) {
-            const senderDisplay = newMsg.sender_role === 'doctor' ? doctorName : clientName;
-            appendMessageUI(newMsg.message_content, senderDisplay, 'incoming', newMsg.message_type || 'text');
+          // Abaikan pesan yang dikirim oleh diri sendiri (sudah muncul di UI)
+          if (newMsg.sender_name !== senderName) {
+            appendMessageUI(newMsg.message_content, newMsg.sender_name, 'incoming', newMsg.message_type || 'text');
           }
         })
         .subscribe();
     }
 
+    // 3. Fungsi Kirim Pesan Teks
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
       if (!text) return;
 
-      const myDisplayName = role === 'doctor' ? doctorName : clientName;
-
       input.value = '';
-      appendMessageUI(text, myDisplayName, 'outgoing', 'text');
+      appendMessageUI(text, senderName, 'outgoing', 'text'); // Tampilkan langsung di UI (Outgoing)
 
-      if (sessionId) {
-        await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_role: role,
-            sender_name: myDisplayName,
-            message_content: text,
-            message_type: 'text'
-          }
-        ]);
-      }
+      // Simpan ke database Supabase
+      const { error } = await supabaseClient.from('messages').insert([
+        {
+          session_id: sessionId,
+          sender_name: senderName,
+          sender_role: role,
+          message_content: text,
+          message_type: 'text'
+        }
+      ]);
+      
+      if (error) console.error("Gagal mengirim pesan:", error.message);
     }
 
+    // 4. Fungsi Kirim Pesan Media (Foto/Video)
     async function handleMediaUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const fileUrl = URL.createObjectURL(file);
       const isVideo = file.type.startsWith('video');
-      const type = isVideo ? 'video' : 'image';
-      const myDisplayName = role === 'doctor' ? doctorName : clientName;
-
-      appendMessageUI(fileUrl, myDisplayName, 'outgoing', type);
-
-      if (sessionId) {
-        await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_role: role,
-            sender_name: myDisplayName,
-            message_content: fileUrl,
-            message_type: type
-          }
-        ]);
-      }
-
-      event.target.value = '';
-    }
-
-    function appendMessageUI(content, name, senderType, type) {
-      const chatBox = document.getElementById('chat-box');
+      const fileType = isVideo ? 'video' : 'image';
       
-      const wrapper = document.createElement('div');
-      wrapper.className = `message-wrapper ${senderType}`;
+      // Tampilkan "Loading" di UI outgoing
+      appendMessageUI("Mengirim media...", senderName, 'outgoing', 'text');
 
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'sender-name';
-      nameSpan.innerText = name;
-      wrapper.appendChild(nameSpan);
-
-      const msgDiv = document.createElement('div');
-      msgDiv.className = 'message';
-
-      if (type === 'text') {
-        msgDiv.innerText = content;
-      } else if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = content;
-        msgDiv.appendChild(img);
-      } else if (type === 'video') {
-        const vid = document.createElement('video');
-        vid.src = content;
-        vid.controls = true;
-        msgDiv.appendChild(vid);
-      }
-
-      wrapper.appendChild(msgDiv);
-      chatBox.appendChild(wrapper);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    initConsultation();
-  </script>
-</body>
-</html>
+      // (Opsional) Logika unggah file ke Supabase Storage bisa ditambahkan di sini.
+      // Untuk kesederhanaan
+    
