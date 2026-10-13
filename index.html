@@ -13,10 +13,9 @@
     header p { font-size: 11px; color: #ccfbf1; margin-top: 4px; }
     main { max-width: 440px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
     .card { background-color: white; border-radius: 16px; padding: 16px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .btn-primary { background-color: #0f766e; color: white; border: none; padding: 10px 16px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; text-decoration: none; display: block; text-align: center; width: 100%; }
     .section-title { font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 10px; border-bottom: 1px solid #f3f4f6; padding-bottom: 6px; }
-    .nav-links { display: flex; gap: 8px; margin-bottom: 4px; }
-    .nav-btn { flex: 1; background-color: #f0fdf4; color: #0f766e; border: 1px solid #0f766e; padding: 8px; border-radius: 10px; font-size: 11px; font-weight: bold; text-align: center; text-decoration: none; }
+    .service-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .btn-booking { background-color: #0f766e; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; display: inline-block; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -26,11 +25,7 @@
   </header>
   
   <main>
-    <div class="nav-links">
-      <a href="vet-dashboard.html" class="nav-btn">🩺 Dompet Dokter</a>
-      <a href="admin.html" class="nav-btn">⚙️ Admin Panel</a>
-    </div>
-
+    <!-- Profil Dokter yang Bertugas -->
     <div class="card">
       <div class="section-title">Dokter Praktisi Tersedia</div>
       <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -47,11 +42,61 @@
       </div>
     </div>
 
+    <!-- Pilihan Layanan & Booking -->
     <div class="card">
-      <div class="section-title">Layanan Konsultasi TeleVet</div>
-      <p style="font-size: 12px; color: #4b5563; margin-bottom: 10px;">Pilih layanan konsultasi langsung dengan dokter hewan profesional kami secara online.</p>
-      <a href="vet-dashboard.html" class="btn-primary">Mulai Konsultasi & Layanan</a>
+      <div class="section-title">Pilih Layanan Konsultasi</div>
+      
+      <div class="service-item">
+        <strong>TeleVet (Pet n Poultry)</strong>
+        <p style="font-size: 11px; color: #4b5563;">Konsultasi online via chat/video dengan drh. Najib.</p>
+        <span style="font-size: 12px; font-weight: bold; color: #0f766e;">Rp 50.000</span>
+        <button onclick="bookService('TeleVet Pet n Poultry', 50000, 'drh. Najib')" class="btn-booking">📅 Booking & Bayar Sekarang</button>
+      </div>
+
+      <div class="service-item">
+        <strong>Konsultasi Hewan Besar / Ternak</strong>
+        <p style="font-size: 11px; color: #4b5563;">Konsultasi khusus ruminansia & ternak dengan drh. Bintang.</p>
+        <span style="font-size: 12px; font-weight: bold; color: #0f766e;">Rp 75.000</span>
+        <button onclick="bookService('Konsultasi Ternak', 75000, 'drh. Bintang')" class="btn-booking">📅 Booking & Bayar Sekarang</button>
+      </div>
     </div>
   </main>
+
+  <script>
+    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function bookService(serviceName, amount, doctorName) {
+      const clientName = prompt("Masukkan Nama Anda (Klien):");
+      if (!clientName) return;
+
+      const phone = prompt("Masukkan No. WhatsApp Anda:");
+      if (!phone) return;
+
+      // Simpan transaksi ke database
+      const { error } = await supabaseClient.from('transactions').insert([
+        {
+          client_name: clientName,
+          client_phone: phone,
+          service_detail: `${serviceName} (${doctorName})`,
+          total_amount: amount,
+          payment_status: 'PENDING'
+        }
+      ]);
+
+      if (error) {
+        alert("Gagal membuat booking: " + error.message);
+      } else {
+        // Arahkan ke WhatsApp Admin dengan pesan konfirmasi
+        const adminPhone = "6281215667746"; // Ganti dengan nomor WhatsApp admin jika perlu
+        const message = `Halo Admin VetBook, saya ${clientName} telah melakukan booking layanan *${serviceName}* dengan *${doctorName}* senilai Rp ${amount.toLocaleString('id-ID')}. Mohon info instruksi pembayaran selanjutnya. Terima kasih.`;
+        const waUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+        
+        alert("Booking berhasil dicatat! Anda akan diarahkan ke WhatsApp Admin untuk konfirmasi pembayaran.");
+        window.location.href = waUrl;
+      }
+    }
+  </script>
 </body>
 </html>
