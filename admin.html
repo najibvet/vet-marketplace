@@ -94,8 +94,11 @@
 
     async function loadAdminData() {
       try {
-        const { data: trans } = await supabaseClient.from('transactions').select('*').order('created_at', { ascending: false });
-        const { data: withdrawals } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
+        const { data: trans, error: errTrans } = await supabaseClient.from('transactions').select('*');
+        if (errTrans) console.warn("Trans error:", errTrans);
+
+        const { data: withdrawals, error: errW } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
+        if (errW) console.warn("Withdrawal error:", errW);
 
         renderFinancialStats(trans || [], withdrawals || []);
         renderWithdrawals(withdrawals || []);
@@ -111,8 +114,8 @@
       let bintangGross = 0;
 
       transactions.forEach(t => {
-        const payStatus = String(t.payment_status || t.status || '').toUpperCase();
-        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED');
+        const payStatus = String(t.payment_status || t.status || 'PAID').toUpperCase();
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED') || payStatus === '';
 
         if (isLunas) {
           const total = Number(t.total_amount || t.amount || 0);
@@ -134,10 +137,11 @@
       let bintangWithdrawn = 0;
 
       withdrawals.forEach(w => {
-        const status = String(w.status || '').toUpperCase();
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const docText = JSON.stringify(w).toLowerCase();
+        const amount = Number(w.amount || 0);
+
         if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'SELESAI') {
-          const docText = JSON.stringify(w).toLowerCase();
-          const amount = Number(w.amount || 0);
           if (docText.includes('bintang')) {
             bintangWithdrawn += amount;
           } else {
@@ -206,18 +210,15 @@
         const amount = Number(t.total_amount || t.amount || 0);
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
 
-        // Tentukan nomor WhatsApp dokter berdasarkan nama layanan/dokter
-        let doctorPhone = "6281215667746"; // Nomor default drh. Najib / Admin
+        let doctorPhone = "6281234567890";
         const serviceLower = service.toLowerCase();
         if (serviceLower.includes('bintang')) {
-          doctorPhone = "6281230732161"; // Ganti dengan nomor WA drh. Bintang jika berbeda
+          doctorPhone = "6281234567890";
         }
 
-        // Format pesan WhatsApp ke Klien
         const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai konsultasi melalui tautan berikut:\n\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
         const waClientUrl = `https://wa.me/${clientPhone}?text=${encodeURIComponent(msgClient)}`;
 
-        // Format pesan WhatsApp ke Dokter
         const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${clientPhone})\n🩺 *Layanan*: ${service}\n\nSilakan bergabung ke ruang konsultasi via link berikut:\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih, Dok!`;
         const waDocUrl = `https://wa.me/${doctorPhone}?text=${encodeURIComponent(msgDoc)}`;
 
@@ -233,5 +234,40 @@
             
             ${!isLunas ? 
               `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : 
-              `<div style="display: flex; flex
-    
+              `<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                 <a href="${waClientUrl}" target="_blank" class="btn-wa-client">💬 Kirim Link Konsultasi ke Klien (WA)</a>
+                 <a href="${waDocUrl}" target="_blank" class="btn-wa-doc">🩺 Kirim Notifikasi ke Dokter (WA)</a>
+               </div>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function approveWithdrawal(id) {
+      if (!confirm("Setujui pencairan dana ini?")) return;
+      const { error } = await supabaseClient.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', id);
+      if (error) {
+        alert("Gagal memperbarui status: " + error.message);
+      } else {
+        alert("Pencairan dana berhasil disetujui!");
+        loadAdminData();
+      }
+    }
+
+    async function markAsPaid(id) {
+      if (!confirm("Ubah status pembayaran booking ini menjadi LUNAS? Saldo komisi dokter akan otomatis bertambah.")) return;
+      const { error } = await supabaseClient.from('transactions').update({ payment_status: 'PAID' }).eq('id', id);
+      if (error) {
+        alert("Gagal memperbarui status pembayaran: " + error.message);
+      } else {
+        alert("Pembayaran berhasil dikonfirmasi dan dicatat sebagai Lunas!");
+        loadAdminData();
+      }
+    }
+
+    loadAdminData();
+  </script>
+</body>
+  </html>
+  
