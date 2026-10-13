@@ -13,7 +13,7 @@
     header h1 { font-size: 13px; font-weight: bold; }
     .header-right { display: flex; align-items: center; gap: 6px; }
     #timer-box { background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: bold; display: none; }
-    .btn-refresh { background: #115e59; color: white; border: none; padding: 3px 6px; border-radius: 6px; font-size: 10px; cursor: pointer; font-weight: bold; }
+    .btn-end { background: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; font-weight: bold; }
     
     .chat-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fff; }
     .message-wrapper { display: flex; flex-direction: column; max-width: 80%; }
@@ -42,16 +42,16 @@
       <p id="user-role-label" style="font-size: 9px; color: #ccfbf1; margin-top: 1px;"></p>
     </div>
     <div class="header-right">
-      <button class="btn-refresh" onclick="fetchMessages()">🔄 Muat</button>
       <div id="timer-box">⏳ <span id="time-left">20:00</span></div>
+      <button class="btn-end" onclick="endConsultation()">Akhiri Konsultasi</button>
     </div>
   </header>
 
   <div class="chat-container" id="chat-box">
-    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Memuat percakapan...</div>
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Memuat ruang konsultasi...</div>
   </div>
 
-  <footer>
+  <footer id="chat-footer">
     <label for="media-input" class="file-btn" title="Kirim Foto/Video">📎</label>
     <input type="file" id="media-input" accept="image/*,video/*" onchange="handleMediaUpload(event)" />
     
@@ -71,6 +71,25 @@
     let myName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
     const roleLabel = document.getElementById('user-role-label');
     const timerBox = document.getElementById('timer-box');
+
+    // Cek status sesi / transaksi di database (apakah sudah diakhiri/kadaluarsa)
+    async function checkSessionStatus() {
+      if (sessionId && sessionId !== 'default-vetbook-room') {
+        const { data, error } = await supabaseClient
+          .from('transactions')
+          .select('status, service_detail, service')
+          .eq('id', sessionId)
+          .single();
+
+        if (!error && data) {
+          if (data.status === 'Selesai' || data.status === 'Kadaluarsa' || data.status === 'Expired') {
+            lockConsultationRoom("Sesi konsultasi ini telah diakhiri dan tautan sudah kadaluarsa.");
+            return false;
+          }
+        }
+      }
+      return true;
+    }
 
     if (role === 'client') {
       roleLabel.innerText = `Klien • Sesi Aktif (20 Menit)`;
@@ -92,16 +111,46 @@
         display.textContent = minutes + ":" + seconds;
         if (--timer < 0) {
           clearInterval(interval);
-          alert("Waktu konsultasi 20 menit telah berakhir.");
-          document.getElementById('chat-input').disabled = true;
+          endConsultation();
         }
       }, 1000);
+    }
+
+    async function endConsultation() {
+      if (confirm("Apakah Anda yakin ingin mengakhiri sesi konsultasi ini? Setelah diakhiri, tautan akan kadaluarsa.")) {
+        try {
+          if (sessionId && sessionId !== 'default-vetbook-room') {
+            await supabaseClient
+              .from('transactions')
+              .update({ status: 'Selesai' })
+              .eq('id', sessionId);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        lockConsultationRoom("Sesi konsultasi telah diakhiri. Tautan kini kadaluarsa.");
+      }
+    }
+
+    function lockConsultationRoom(message) {
+      document.getElementById('chat-input').disabled = true;
+      document.getElementById('media-input').disabled = true;
+      document.getElementById('chat-footer').style.display = 'none';
+      const chatBox = document.getElementById('chat-box');
+      const alertDiv = document.createElement('div');
+      alertDiv.style.cssText = "background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; margin: 10px 0;";
+      alertDiv.innerText = message;
+      chatBox.appendChild(alertDiv);
     }
 
     let loadedMessageIds = new Set();
 
     async function fetchMessages() {
+      const isActive = await checkSessionStatus();
+      if (!isActive) return;
+
       try {
+        // Mengambil pesan dari tabel messages dengan berbagai deteksi kolom
         const { data, error } = await supabaseClient
           .from('messages')
           .select('*')
@@ -121,7 +170,7 @@
           }
 
           data.forEach(msg => {
-            const msgKey = msg.id || (msg.created_at + (msg.message || msg.message_content || ''));
+            const msgKey = msg.id || (msg.created_at + JSON.stringify(msg));
             if (!loadedMessageIds.has(msgKey)) {
               loadedMessageIds.add(msgKey);
               if (welcome) welcome.remove();
@@ -129,19 +178,19 @@
               const isMine = (msg.sender_role === role);
               const senderType = isMine ? 'outgoing' : 'incoming';
               
-              // Ambil isi pesan dari berbagai kemungkinan nama kolom
-              let content = msg.message || msg.message_content || msg.content || '';
+              // Cari teks dari berbagai kemungkinan nama kolom di database Anda
+              let rawContent = msg.message || msg.message_content || msg.content || msg.text || '';
               let displayName = msg.sender_role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
               
-              if (content.startsWith('[')) {
-                const parts = content.split(']: ');
+              if (rawContent.startsWith('[')) {
+                const parts = rawContent.split(']: ');
                 if (parts.length > 1) {
                   displayName = parts[0].substring(1);
-                  content = parts[1];
+                  rawContent = parts[1];
                 }
               }
 
-              appendMessageUI(content, displayName, senderType, 'text');
+              appendMessageUI(rawContent, displayName, senderType, 'text');
             }
           });
         }
@@ -158,30 +207,36 @@
       input.value = '';
       const formattedContent = `[${myName}]: ${text}`;
 
-      // Tampilkan langsung di layar lokal
+      // Tampilkan langsung di layar lokal agar instan
       appendMessageUI(text, myName, 'outgoing', 'text');
 
       try {
-        // Menggunakan kolom 'message' yang umum, sekaligus menyertakan session_id dan sender_role
-        const { error } = await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_role: role,
-            message: formattedContent
-          }
+        // Coba simpan ke kolom 'message'
+        let { error } = await supabaseClient.from('messages').insert([
+          { session_id: sessionId, sender_role: role, message: formattedContent }
         ]);
 
+        // Jika gagal, coba kolom 'message_content'
         if (error) {
-          // Fallback jika kolomnya bernama 'message_content'
-          await supabaseClient.from('messages').insert([
-            {
-              session_id: sessionId,
-              sender_role: role,
-              message_content: formattedContent
-            }
+          let res = await supabaseClient.from('messages').insert([
+            { session_id: sessionId, sender_role: role, message_content: formattedContent }
           ]);
+          error = res.error;
         }
-        fetchMessages();
+
+        // Jika masih gagal, coba kolom 'content'
+        if (error) {
+          let res = await supabaseClient.from('messages').insert([
+            { session_id: sessionId, sender_role: role, content: formattedContent }
+          ]);
+          error = res.error;
+        }
+
+        if (error) {
+          console.error("Gagal simpan database:", error.message);
+        } else {
+          fetchMessages();
+        }
       } catch (err) {
         console.error("Gagal mengirim pesan:", err);
       }
@@ -198,11 +253,7 @@
 
       try {
         await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_role: role,
-            message: formattedContent
-          }
+          { session_id: sessionId, sender_role: role, message: formattedContent }
         ]);
         fetchMessages();
       } catch (err) {
@@ -241,7 +292,7 @@
     }
 
     fetchMessages();
-    setInterval(fetchMessages, 2000);
+    setInterval(fetchMessages, 2500);
   </script>
 </body>
 </html>
