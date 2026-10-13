@@ -155,9 +155,139 @@
 
     async function loadDoctorWallet() {
       try {
-        const { data: trans, error: errTrans } = await supabaseClient.from('transactions').select('*');
-        if (errTrans) console.warn(errTrans);
+        const { data: trans } = await supabaseClient.from('transactions').select('*');
         globalTransactions = trans || [];
 
-        const { data: wList, error: errW } = await supabaseClient.from('withdrawals').select('*').order('created_at',
-  
+        const { data: wList } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
+        globalWithdrawals = wList || [];
+
+        switchDoctorAccount();
+      } catch (err) {
+        console.error("Gagal memuat dompet:", err);
+      }
+    }
+
+    function calculateDoctorStats() {
+      const key = getSelectedDoctorKey();
+      let gross = 0;
+
+      globalTransactions.forEach(t => {
+        const payStatus = String(t.payment_status || t.status || 'PAID').toUpperCase();
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED') || payStatus === '';
+
+        if (isLunas) {
+          const total = Number(t.total_amount || t.amount || 0);
+          const doctorShare = total - Math.round(total * 0.15);
+          const serviceName = String(t.service_detail || t.service || '').toLowerCase();
+
+          if (key === 'bintang' && serviceName.includes('bintang')) {
+            gross += doctorShare;
+          } else if (key === 'najib' && !serviceName.includes('bintang')) {
+            gross += doctorShare;
+          } else if (globalTransactions.length === 1) {
+            // Jika transaksi hanya 1 dan tidak ada keterangan nama, arahkan ke drh. Najib
+            gross += doctorShare;
+          }
+        }
+      });
+
+      let withdrawn = 0;
+      globalWithdrawals.forEach(w => {
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const docText = JSON.stringify(w).toLowerCase();
+        const isMatchBintang = docText.includes('bintang');
+        
+        if ((key === 'bintang' && isMatchBintang) || (key === 'najib' && !isMatchBintang)) {
+          if (status === 'SUCCESS' || status === 'PENDING' || status === 'COMPLETED' || status === 'SELESAI') {
+            withdrawn += Number(w.amount || 0);
+          }
+        }
+      });
+
+      const netBalance = Math.max(0, gross - withdrawn);
+
+      const balEl = document.getElementById('doc-balance');
+      const withEl = document.getElementById('doc-withdrawn');
+      if (balEl) balEl.innerText = `Rp ${netBalance.toLocaleString('id-ID')}`;
+      if (withEl) withEl.innerText = `Tercairkan/Pending: Rp ${withdrawn.toLocaleString('id-ID')}`;
+    }
+
+    function loadMyWithdrawals() {
+      const key = getSelectedDoctorKey();
+      const listContainer = document.getElementById('withdrawal-history');
+      const countBadge = document.getElementById('history-count');
+
+      const myWithdrawals = globalWithdrawals.filter(w => {
+        const docText = JSON.stringify(w).toLowerCase();
+        if (key === 'bintang') return docText.includes('bintang');
+        return !docText.includes('bintang');
+      });
+
+      if (countBadge) countBadge.innerText = `${myWithdrawals.length} Data`;
+
+      if (!listContainer) return;
+
+      if (myWithdrawals.length === 0) {
+        listContainer.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada riwayat penarikan.</p>`;
+        return;
+      }
+
+      listContainer.innerHTML = myWithdrawals.map(w => {
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const isPending = status === 'PENDING';
+        const amount = Number(w.amount || 0);
+        const dateStr = w.created_at ? new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+        const bankInfo = w.bank_details || w.bank_info || w.account_number || '-';
+
+        return `
+          <div class="history-item">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: #0f766e;">Rp ${amount.toLocaleString('id-ID')}</strong>
+              <span class="${isPending ? 'badge-pending' : 'badge-success'}">${status}</span>
+            </div>
+            <span style="color: #4b5563; font-size: 11px;">🏦 Rek: ${bankInfo}</span>
+            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function submitWithdrawal(e) {
+      e.preventDefault();
+      const name = document.getElementById('input-name').value;
+      const amount = Number(document.getElementById('input-amount').value);
+      const bank = document.getElementById('input-bank').value;
+
+      if (amount <= 0) {
+        alert("Nominal penarikan tidak valid.");
+        return;
+      }
+
+      try {
+        const { error } = await supabaseClient.from('withdrawals').insert([
+          {
+            vet_name: name,
+            doctor_name: name,
+            bank_details: bank,
+            amount: amount,
+            status: 'PENDING'
+          }
+        ]);
+
+        if (error) {
+          alert("Gagal mengajukan penarikan: " + error.message);
+        } else {
+          alert("Pengajuan penarikan berhasil dikirim ke Admin!");
+          document.getElementById('input-amount').value = '';
+          document.getElementById('input-bank').value = '';
+          loadDoctorWallet();
+        }
+      } catch (err) {
+        alert("Terjadi kesalahan: " + err.message);
+      }
+    }
+
+    loadDoctorWallet();
+  </script>
+</body>
+</html>
