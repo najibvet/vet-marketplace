@@ -115,23 +115,22 @@
 
           if (data.length === 0) {
             if (chatBox.children.length === 0) {
-              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada pesan. Sсилаkan mulai berkirim pesan.</div>';
+              chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;" id="welcome-text">Belum ada pesan. Silakan mulai berkirim pesan.</div>';
             }
             return;
           }
 
           data.forEach(msg => {
-            const msgKey = msg.id || (msg.created_at + msg.message_content);
+            const msgKey = msg.id || (msg.created_at + (msg.message || msg.message_content || ''));
             if (!loadedMessageIds.has(msgKey)) {
               loadedMessageIds.add(msgKey);
               if (welcome) welcome.remove();
 
-              // Tentukan apakah pesan ini dari kita atau orang lain berdasarkan sender_role
               const isMine = (msg.sender_role === role);
               const senderType = isMine ? 'outgoing' : 'incoming';
               
-              // Format isi pesan: jika formatnya [Nama]: Pesan, kita pisahkan atau tampilkan langsung
-              let content = msg.message_content;
+              // Ambil isi pesan dari berbagai kemungkinan nama kolom
+              let content = msg.message || msg.message_content || msg.content || '';
               let displayName = msg.sender_role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
               
               if (content.startsWith('[')) {
@@ -145,8 +144,6 @@
               appendMessageUI(content, displayName, senderType, 'text');
             }
           });
-        } else if (error) {
-          console.error("Supabase select error:", error.message);
         }
       } catch (err) {
         console.error("Gagal sinkronisasi:", err);
@@ -159,29 +156,34 @@
       if (!text) return;
 
       input.value = '';
-
-      // Format string universal yang aman untuk kolom database standar
       const formattedContent = `[${myName}]: ${text}`;
 
       // Tampilkan langsung di layar lokal
       appendMessageUI(text, myName, 'outgoing', 'text');
 
       try {
+        // Menggunakan kolom 'message' yang umum, sekaligus menyertakan session_id dan sender_role
         const { error } = await supabaseClient.from('messages').insert([
           {
             session_id: sessionId,
             sender_role: role,
-            message_content: formattedContent
+            message: formattedContent
           }
         ]);
 
         if (error) {
-          alert("Gagal menyimpan ke database: " + error.message);
-        } else {
-          fetchMessages();
+          // Fallback jika kolomnya bernama 'message_content'
+          await supabaseClient.from('messages').insert([
+            {
+              session_id: sessionId,
+              sender_role: role,
+              message_content: formattedContent
+            }
+          ]);
         }
+        fetchMessages();
       } catch (err) {
-        console.error("Kesalahan jaringan:", err);
+        console.error("Gagal mengirim pesan:", err);
       }
     }
 
@@ -199,7 +201,7 @@
           {
             session_id: sessionId,
             sender_role: role,
-            message_content: formattedContent
+            message: formattedContent
           }
         ]);
         fetchMessages();
@@ -238,7 +240,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Ambil pesan awal, lalu perbarui otomatis setiap 2 detik
     fetchMessages();
     setInterval(fetchMessages, 2000);
   </script>
