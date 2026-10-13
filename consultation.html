@@ -48,7 +48,7 @@
   </header>
 
   <div class="chat-container" id="chat-box">
-    <!-- Pesan sambutan sistem telah dihapus, area chat bersih langsung dimulai -->
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 10px;">Memuat ruang konsultasi...</div>
   </div>
 
   <footer>
@@ -70,7 +70,7 @@
     
     let senderName = urlParams.get('name');
     if (!senderName) {
-      senderName = role === 'doctor' ? 'Dokter Hewan' : 'Klien (Pemilik Hewan)';
+      senderName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
     }
 
     const roleLabel = document.getElementById('user-role-label');
@@ -106,62 +106,70 @@
       }, 1000);
     }
 
-    // Ambil riwayat chat dari Supabase
+    // Ambil riwayat chat dari Supabase dengan aman
     async function fetchMessages() {
-      const { data, error } = await supabaseClient
-        .from('messages')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: true });
+      try {
+        const { data, error } = await supabaseClient
+          .from('messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true });
 
-      const chatBox = document.getElementById('chat-box');
-      chatBox.innerHTML = ''; // Kosongkan lalu isi ulang dengan data terbaru dari DB
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = '';
 
-      if (!error && data && data.length > 0) {
-        data.forEach(msg => {
-          const senderType = msg.sender_name === senderName ? 'outgoing' : 'incoming';
-          appendMessageUI(msg.message_content, msg.sender_name, senderType, msg.message_type || 'text');
-        });
-      } else {
-        chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">Belum ada percakapan. Silakan mulai mengirim pesan.</div>';
+        if (!error && data && data.length > 0) {
+          data.forEach(msg => {
+            const senderType = msg.sender_role === role ? 'outgoing' : 'incoming';
+            const nameDisplay = msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien');
+            appendMessageUI(msg.message_content, nameDisplay, senderType, msg.message_type || 'text');
+          });
+        } else {
+          chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">Belum ada percakapan. Silakan mulai mengirim pesan.</div>';
+        }
+      } catch (err) {
+        console.error("Gagal memuat pesan:", err);
       }
     }
 
-    // Berlangganan perubahan database secara real-time
-    function setupRealtimeSubscription() {
-      supabaseClient
-        .channel('room-' + sessionId)
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages', 
-            filter: 'session_id=eq.' + sessionId 
-        }, payload => {
-          const newMsg = payload.new;
-          if (newMsg.sender_name !== senderName) {
-            appendMessageUI(newMsg.message_content, newMsg.sender_name, 'incoming', newMsg.message_type || 'text');
-          }
-        })
-        .subscribe();
-    }
-
+    // Fungsi Kirim Pesan yang Dipastikan Aman
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
       if (!text) return;
 
       input.value = '';
+      
+      // Tampilkan langsung ke UI lokal agar terasa sangat responsif
       appendMessageUI(text, senderName, 'outgoing', 'text');
 
-      await supabaseClient.from('messages').insert([
-        {
-          session_id: sessionId,
-          sender_name: senderName,
-          sender_role: role,
-          message_content: text,
-          message_type: 'text'
+      try {
+        // Kirim ke database menggunakan kolom dasar yang pasti ada
+        const { error } = await supabaseClient.from('messages').insert([
+          {
+            session_id: sessionId,
+            sender_name: senderName,
+            sender_role: role,
+            message_content: text,
+            message_type: 'text'
+          }
+        ]);
+
+        if (error) {
+          console.error("Error insert database:", error.message);
+          // Fallback jika kolom sender_name belum ada di tabel database Anda
+          await supabaseClient.from('messages').insert([
+            {
+              session_id: sessionId,
+              sender_role: role,
+              message_content: `[${senderName}]: ${text}`,
+              message_type: 'text'
+            }
+          ]);
         }
-      ]);
+      } catch (err) {
+        console.error("Gagal mengirim pesan ke server:", err);
+      }
     }
 
     async function handleMediaUpload(event) {
@@ -190,8 +198,7 @@
     function appendMessageUI(content, name, senderType, type) {
       const chatBox = document.getElementById('chat-box');
       
-      // Hapus teks "Belum ada percakapan" jika ada
-      if (chatBox.innerText.includes('Belum ada percakapan')) {
+      if (chatBox.innerText.includes('Belum ada percakapan') || chatBox.innerText.includes('Memuat ruang konsultasi')) {
         chatBox.innerHTML = '';
       }
       
@@ -224,10 +231,10 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Jalankan fungsi awal dan auto-refresh berkala setiap 3 detik sebagai cadangan real-time
+    // Jalankan inisialisasi dan auto-refresh sinkronisasi pesan setiap 3 detik
     fetchMessages();
-    setupRealtimeSubscription();
-    setInterval(fetchMessages, 3000); 
+    setInterval(fetchMessages, 3000);
   </script>
 </body>
-</html>
+      </html>
+      
