@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - VetBook</title>
+  <title>Admin Panel - VetBook v2.0</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -15,17 +15,25 @@
     main { max-width: 440px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
     .card { background-color: white; border-radius: 16px; padding: 16px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .section-head { font-size: 12px; font-weight: bold; color: #111827; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-    .history-item { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-top: 8px; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-title { font-size: 11px; font-weight: bold; color: #1e40af; }
+    .stat-amount { font-size: 15px; font-weight: 800; color: #1e3a8a; margin-top: 4px; }
+    .stat-sub { font-size: 10px; color: #6b7280; margin-top: 2px; }
+
+    .item-box { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-top: 8px; }
     .badge-pending { background-color: #fef3c7; color: #92400e; font-size: 9px; font-weight: bold; padding: 2px 8px; border-radius: 12px; display: inline-block; }
     .badge-success { background-color: #ccfbf1; color: #115e59; font-size: 9px; font-weight: bold; padding: 2px 8px; border-radius: 12px; display: inline-block; }
+    
     .btn-action { background-color: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; }
+    .btn-pay { background-color: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; margin-top: 4px; }
   </style>
 </head>
 <body>
   <header>
     <div>
       <h1>⚙️ VetBook Admin</h1>
-      <p>Pusat Kendali & Verifikasi Payout</p>
+      <p>Pusat Kendali Keuangan & Verifikasi</p>
     </div>
     <div style="display: flex; gap: 6px;">
       <a href="index.html" class="btn-header">← Beranda</a>
@@ -34,10 +42,45 @@
   </header>
 
   <main>
+    <!-- Ringkasan Keuangan Platform & Dokter -->
+    <div class="grid-2">
+      <div class="card" style="border-color: #bfdbfe;">
+        <p class="stat-title">Hak Platform (15%)</p>
+        <p id="platform-revenue" class="stat-amount">Rp 0</p>
+        <p class="stat-sub">Akumulasi Fee Sistem</p>
+      </div>
+      <div class="card" style="border-color: #99f6e4;">
+        <p class="stat-title" style="color: #0f766e;">Sisa Hak drh. Najib</p>
+        <p id="najib-balance" class="stat-amount" style="color: #115e59;">Rp 0</p>
+        <p id="najib-withdrawn" class="stat-sub">Tercairkan: Rp 0</p>
+      </div>
+    </div>
+
+    <div class="card" style="border-color: #99f6e4;">
+      <p class="stat-title" style="color: #0f766e;">Sisa Hak drh. Bintang</p>
+      <p id="bintang-balance" class="stat-amount" style="color: #115e59;">Rp 0</p>
+      <p id="bintang-withdrawn" class="stat-sub">Tercairkan: Rp 0</p>
+    </div>
+
+    <!-- Daftar Pengajuan Penarikan Dokter -->
     <div class="card">
-      <div class="section-head"><span>Daftar Pengajuan Penarikan Dokter</span></div>
+      <div class="section-head">
+        <span>Pengajuan Penarikan Dokter</span>
+        <span id="withdrawal-count" style="background: #f3f4f6; color: #4b5563; font-size: 10px; padding: 2px 8px; border-radius: 10px;">0 Data</span>
+      </div>
       <div id="admin-withdrawals-list">
-        <p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Memuat data...</p>
+        <p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Memuat pengajuan...</p>
+      </div>
+    </div>
+
+    <!-- Daftar Booking / Transaksi Klien -->
+    <div class="card">
+      <div class="section-head">
+        <span>Daftar Booking Konsultasi Klien</span>
+        <span id="booking-count" style="background: #f3f4f6; color: #4b5563; font-size: 10px; padding: 2px 8px; border-radius: 10px;">0 Data</span>
+      </div>
+      <div id="admin-bookings-list">
+        <p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Memuat data booking...</p>
       </div>
     </div>
   </main>
@@ -49,43 +92,132 @@
 
     async function loadAdminData() {
       try {
-        const { data: wList, error } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
-        const container = document.getElementById('admin-withdrawals-list');
-        
-        if (error) {
-          container.innerHTML = `<p style="color: red; font-size: 11px;">Gagal memuat: ${error.message}</p>`;
-          return;
-        }
+        // Ambil data transaksi & withdrawals
+        const { data: trans } = await supabaseClient.from('transactions').select('*').order('created_at', { ascending: false });
+        const { data: withdrawals } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
 
-        if (!wList || wList.length === 0) {
-          container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada pengajuan penarikan.</p>`;
-          return;
-        }
-
-        container.innerHTML = wList.map(w => {
-          const status = String(w.status || 'PENDING').toUpperCase();
-          const isPending = status === 'PENDING';
-          const amount = Number(w.amount || 0);
-          const docName = w.vet_name || w.doctor_name || 'Dokter';
-          const bankInfo = w.bank_details || w.bank_info || '-';
-          const dateStr = w.created_at ? new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-
-          return `
-            <div class="history-item">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <strong>🩺 ${docName}</strong>
-                <span class="${isPending ? 'badge-pending' : 'badge-success'}">${status}</span>
-              </div>
-              <span style="color: #0f766e; font-weight: bold; font-size: 13px;">Nominal: Rp ${amount.toLocaleString('id-ID')}</span>
-              <span style="color: #4b5563;">🏦 Rek: ${bankInfo}</span>
-              <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
-              ${isPending ? `<button onclick="approveWithdrawal('${w.id}')" class="btn-action">✔️ Setujui & Transfer</button>` : ''}
-            </div>
-          `;
-        }).join('');
+        renderFinancialStats(trans || [], withdrawals || []);
+        renderWithdrawals(withdrawals || []);
+        renderBookings(trans || []);
       } catch (err) {
-        console.error("Error loading admin data:", err);
+        console.error("Gagal memuat data admin:", err);
       }
+    }
+
+    function renderFinancialStats(transactions, withdrawals) {
+      let platformFeeTotal = 0;
+      let najibGross = 0;
+      let bintangGross = 0;
+
+      transactions.forEach(t => {
+        const payStatus = String(t.payment_status || t.status || '').toUpperCase();
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED');
+
+        if (isLunas) {
+          const total = Number(t.total_amount || t.amount || 0);
+          const fee = Math.round(total * 0.15);
+          platformFeeTotal += fee;
+
+          const serviceName = String(t.service_detail || t.service || '').toLowerCase();
+          const doctorShare = total - fee;
+
+          if (serviceName.includes('bintang')) {
+            bintangGross += doctorShare;
+          } else {
+            najibGross += doctorShare;
+          }
+        }
+      });
+
+      let najibWithdrawn = 0;
+      let bintangWithdrawn = 0;
+
+      withdrawals.forEach(w => {
+        const status = String(w.status || '').toUpperCase();
+        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'SELESAI') {
+          const docText = JSON.stringify(w).toLowerCase();
+          const amount = Number(w.amount || 0);
+          if (docText.includes('bintang')) {
+            bintangWithdrawn += amount;
+          } else {
+            najibWithdrawn += amount;
+          }
+        }
+      });
+
+      const najibNet = Math.max(0, najibGross - najibWithdrawn);
+      const bintangNet = Math.max(0, bintangGross - bintangWithdrawn);
+
+      document.getElementById('platform-revenue').innerText = `Rp ${platformFeeTotal.toLocaleString('id-ID')}`;
+      document.getElementById('najib-balance').innerText = `Rp ${najibNet.toLocaleString('id-ID')}`;
+      document.getElementById('najib-withdrawn').innerText = `Tercairkan: Rp ${najibWithdrawn.toLocaleString('id-ID')}`;
+      document.getElementById('bintang-balance').innerText = `Rp ${bintangNet.toLocaleString('id-ID')}`;
+      document.getElementById('bintang-withdrawn').innerText = `Tercairkan: Rp ${bintangWithdrawn.toLocaleString('id-ID')}`;
+    }
+
+    function renderWithdrawals(wList) {
+      const container = document.getElementById('admin-withdrawals-list');
+      document.getElementById('withdrawal-count').innerText = `${wList.length} Data`;
+
+      if (wList.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada pengajuan penarikan.</p>`;
+        return;
+      }
+
+      container.innerHTML = wList.map(w => {
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const isPending = status === 'PENDING';
+        const amount = Number(w.amount || 0);
+        const docName = w.vet_name || w.doctor_name || 'Dokter';
+        const bankInfo = w.bank_details || w.bank_info || '-';
+        const dateStr = w.created_at ? new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+        return `
+          <div class="item-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>🩺 ${docName}</strong>
+              <span class="${isPending ? 'badge-pending' : 'badge-success'}">${status}</span>
+            </div>
+            <span style="color: #0f766e; font-weight: bold; font-size: 13px;">Nominal: Rp ${amount.toLocaleString('id-ID')}</span>
+            <span style="color: #4b5563;">🏦 Rek: ${bankInfo}</span>
+            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
+            ${isPending ? `<button onclick="approveWithdrawal('${w.id}')" class="btn-action">✔️ Setujui & Transfer</button>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBookings(transList) {
+      const container = document.getElementById('admin-bookings-list');
+      document.getElementById('booking-count').innerText = `${transList.length} Data`;
+
+      if (transList.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada data booking.</p>`;
+        return;
+      }
+
+      container.innerHTML = transList.map(t => {
+        const payStatus = String(t.payment_status || t.status || 'PENDING').toUpperCase();
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED');
+        const clientName = t.client_name || 'Klien';
+        const clientPhone = t.client_phone || '-';
+        const service = t.service_detail || t.service || 'Konsultasi Medis';
+        const amount = Number(t.total_amount || t.amount || 0);
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+        return `
+          <div class="item-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>👤 ${clientName} (${clientPhone})</strong>
+              <span class="${isLunas ? 'badge-success' : 'badge-pending'}">${isLunas ? 'LUNAS' : 'PENDING'}</span>
+            </div>
+            <span style="color: #1f2937; font-size: 11px;">🩺 Layanan: ${service}</span>
+            <span style="color: #1e3a8a; font-weight: bold; font-size: 13px;">Biaya: Rp ${amount.toLocaleString('id-ID')}</span>
+            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
+            ${!isLunas ? `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
     async function approveWithdrawal(id) {
@@ -99,7 +231,19 @@
       }
     }
 
+    async function markAsPaid(id) {
+      if (!confirm("Ubah status pembayaran booking ini menjadi LUNAS? Saldo komisi dokter akan otomatis bertambah.")) return;
+      const { error } = await supabaseClient.from('transactions').update({ payment_status: 'PAID' }).eq('id', id);
+      if (error) {
+        alert("Gagal memperbarui status pembayaran: " + error.message);
+      } else {
+        alert("Pembayaran berhasil dikonfirmasi dan dicatat sebagai Lunas!");
+        loadAdminData();
+      }
+    }
+
     loadAdminData();
   </script>
 </body>
-</html>
+                                                                   </html>
+                                                                   
