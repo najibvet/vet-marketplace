@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ruang Konsultasi Medis - VetBook v2.0</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     html, body { height: 100%; overflow: hidden; background-color: #f3f4f6; color: #1f2937; display: flex; flex-direction: column; }
@@ -44,7 +45,7 @@
   <div class="chat-container" id="chat-box">
     <div class="message-wrapper incoming">
       <span class="sender-name">Sistem VetBook</span>
-      <div class="message">Halo! Selamat datang di Ruang Konsultasi VetBook. Silakan sampaikan keluhan hewan kesayangan Anda dan kirimkan foto/video jika diperlukan. 🐾</div>
+      <div class="message">Halo! Selamat datang di Ruang Konsultasi VetBook. Silakan sampaikan keluhan hewan kesayangan Anda. 🐾</div>
     </div>
   </div>
 
@@ -57,22 +58,27 @@
   </footer>
 
   <script>
+    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role') || 'client'; // 'client' atau 'doctor'
+    const sessionId = urlParams.get('id') || 'general-room';
 
     const roleLabel = document.getElementById('user-role-label');
     const timerBox = document.getElementById('timer-box');
 
-    // Tentukan Nama Pengirim Berdasarkan Peran
-    const senderName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
+    // Tentukan Nama Pengirim Berdasarkan Peran yang Mengakses
+    const mySenderName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
 
     if (role === 'client') {
       roleLabel.innerText = 'Mode Klien (Batas Waktu Konsultasi: 20 Menit)';
       timerBox.style.display = 'block';
-      startCountdown(20 * 60); // Hitung mundur 20 menit khusus klien
+      startCountdown(20 * 60);
     } else {
       roleLabel.innerText = 'Mode Dokter Praktisi (Waktu & Akses Tidak Terbatas)';
-      timerBox.style.display = 'none'; // Dokter bebas tanpa batas waktu
+      timerBox.style.display = 'none';
     }
 
     function startCountdown(duration) {
@@ -96,40 +102,88 @@
       }, 1000);
     }
 
-    function sendMessage() {
+    // Ambil riwayat pesan dari Supabase
+    async function fetchMessages() {
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = `
+          <div class="message-wrapper incoming">
+            <span class="sender-name">Sistem VetBook</span>
+            <div class="message">Halo! Selamat datang di Ruang Konsultasi VetBook. Silakan sampaikan keluhan hewan kesayangan Anda. 🐾</div>
+          </div>
+        `;
+        
+        data.forEach(msg => {
+          const isMe = msg.sender_role === role;
+          appendMessageUI(msg.message_content, msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien'), isMe ? 'outgoing' : 'incoming', msg.message_type || 'text');
+        });
+      }
+    }
+
+    // Real-time listener untuk menerima pesan baru dari pihak lain
+    supabaseClient
+      .channel('public:messages:' + sessionId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `session_id=eq.${sessionId}` }, payload => {
+        const newMsg = payload.new;
+        if (newMsg.sender_role !== role) {
+          appendMessageUI(newMsg.message_content, newMsg.sender_name, 'incoming', newMsg.message_type || 'text');
+        }
+      })
+      .subscribe();
+
+    async function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
       if (!text) return;
 
-      appendMessage(text, senderName, 'outgoing', 'text');
       input.value = '';
+      appendMessageUI(text, mySenderName, 'outgoing', 'text');
 
-      // Simulasi balasan otomatis / penyimpanan lokal agar langsung terlihat responsif
-      setTimeout(() => {
-        if (role === 'client') {
-          appendMessage("Baik, pesan Anda sudah diterima Dok. Mohon tunggu sebentar ya.", "drh. Najib", 'incoming', 'text');
-        } else {
-          appendMessage("Baik Dok, terima kasih atas arahannya.", "Klien (Pemilik Hewan)", 'incoming', 'text');
+      await supabaseClient.from('messages').insert([
+        {
+          session_id: sessionId,
+          sender_role: role,
+          sender_name: mySenderName,
+          message_content: text,
+          message_type: 'text'
         }
-      }, 800);
+      ]);
     }
 
-    function handleMediaUpload(event) {
+    async function handleMediaUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const fileUrl = URL.createObjectURL(file);
       const isVideo = file.type.startsWith('video');
+      const type = isVideo ? 'video' : 'image';
 
-      appendMessage({ url: fileUrl, type: isVideo ? 'video' : 'image' }, senderName, 'outgoing', 'media');
-      event.target.value = ''; 
+      appendMessageUI(fileUrl, mySenderName, 'outgoing', type);
+
+      await supabaseClient.from('messages').insert([
+        {
+          session_id: sessionId,
+          sender_role: role,
+          sender_name: mySenderName,
+          message_content: fileUrl,
+          message_type: type
+        }
+      ]);
+
+      event.target.value = '';
     }
 
-    function appendMessage(content, name, senderType, type) {
+    function appendMessageUI(content, name, senderType, type) {
       const chatBox = document.getElementById('chat-box');
       
       const wrapper = document.createElement('div');
-      wrapper.className = `message-wrapper ${senderType === 'outgoing' ? 'outgoing' : 'incoming'}`;
+      wrapper.className = `message-wrapper ${senderType}`;
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'sender-name';
@@ -141,24 +195,23 @@
 
       if (type === 'text') {
         msgDiv.innerText = content;
-      } else if (type === 'media') {
-        if (content.type === 'image') {
-          const img = document.createElement('img');
-          img.src = content.url;
-          msgDiv.appendChild(img);
-        } else {
-          const vid = document.createElement('video');
-          vid.src = content.url;
-          vid.controls = true;
-          msgDiv.appendChild(vid);
-        }
+      } else if (type === 'image') {
+        const img = document.createElement('img');
+        img.src = content;
+        msgDiv.appendChild(img);
+      } else if (type === 'video') {
+        const vid = document.createElement('video');
+        vid.src = content;
+        vid.controls = true;
+        msgDiv.appendChild(vid);
       }
 
       wrapper.appendChild(msgDiv);
       chatBox.appendChild(wrapper);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    fetchMessages();
   </script>
 </body>
-  </html>
-  
+</html>
