@@ -3,236 +3,261 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ruang Konsultasi Medis - VetBook v2.0</title>
+  <title>Ruang Konsultasi VetBook</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    html, body { height: 100%; overflow: hidden; background-color: #f3f4f6; color: #1f2937; display: flex; flex-direction: column; }
-    
-    header { background-color: #0f766e; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; }
-    header h1 { font-size: 14px; font-weight: bold; }
-    .header-right { display: flex; align-items: center; gap: 8px; }
-    #timer-box { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; display: none; }
-    .btn-refresh { background: #115e59; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; }
-    
-    .chat-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fff; }
-    .message-wrapper { display: flex; flex-direction: column; max-width: 80%; }
-    .message-wrapper.incoming { align-self: flex-start; }
-    .message-wrapper.outgoing { align-self: flex-end; align-items: flex-end; }
-    
-    .sender-name { font-size: 10px; font-weight: bold; color: #6b7280; margin-bottom: 2px; padding: 0 4px; }
-    
-    .message { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-break: break-word; }
-    .incoming .message { background: #f3f4f6; color: #1f2937; border-top-left-radius: 2px; }
-    .outgoing .message { background: #0f766e; color: white; border-top-right-radius: 2px; }
-    
-    .message img, .message video { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
-    
-    footer { padding: 10px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-    .file-btn { background-color: #e5e7eb; color: #374151; border: none; padding: 10px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-    input[type="text"] { flex: 1; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 14px; font-size: 13px; outline: none; background: #fff; }
-    input[type="file"] { display: none; }
-    .send-btn { background-color: #0f766e; color: white; border: none; padding: 10px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 13px; }
+    *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    html,body{height:100%;margin:0;background:#f3f4f6;color:#1f2937}
+    body{display:flex;flex-direction:column;overflow:hidden}
+    header{background:#0f766e;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;box-shadow:0 2px 4px #0001;flex-shrink:0}
+    header h1{font-size:15px;margin:0;font-weight:700}
+    .header-right{display:flex;align-items:center;gap:8px}
+    #timer-box{background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold;white-space:nowrap}
+    button{border:0;border-radius:9px;font-weight:700;cursor:pointer}
+    .btn-refresh{background:#115e59;color:#fff;padding:8px 10px;font-size:11px}
+    .chat-container{flex:1;min-height:0;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;background:#fff}
+    .message-wrapper{display:flex;flex-direction:column;max-width:85%;overflow-wrap:anywhere}
+    .incoming{align-self:flex-start}.outgoing{align-self:flex-end;align-items:flex-end}
+    .sender-name{font-size:10px;font-weight:bold;color:#6b7280;margin-bottom:3px;padding:0 4px}
+    .message{padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+    .incoming .message{background:#f3f4f6;color:#1f2937;border-top-left-radius:2px}
+    .outgoing .message{background:#0f766e;color:white;border-top-right-radius:2px}
+    .message img,.message video{max-width:100%;border-radius:8px;margin-top:6px;display:block}
+    #notice{flex-shrink:0;padding:7px 12px;font-size:12px;background:#ecfeff;color:#155e75;border-top:1px solid #cffafe;overflow-wrap:anywhere}
+    #notice.error{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+    footer{padding:10px 12px;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:center;flex-shrink:0}
+    input[type=text]{flex:1;min-width:0;border:1px solid #d1d5db;border-radius:10px;padding:12px;font-size:14px;outline:none;background:#fff}
+    input[type=text]:focus{border-color:#0f766e}
+    .send-btn{background:#0f766e;color:#fff;padding:12px 16px;font-size:13px}
+    button:disabled,input:disabled{opacity:.55;cursor:not-allowed}
+    .empty{align-self:center;text-align:center;color:#9ca3af;font-size:12px;margin-top:20px}
+    @media(max-width:420px){header{padding:10px}header h1{font-size:13px}.header-right{gap:5px}.btn-refresh{padding:7px;font-size:10px}.chat-container{padding:12px}.send-btn{padding:12px}}
   </style>
 </head>
 <body>
   <header>
     <div>
       <h1 id="session-title">🩺 Ruang Konsultasi VetBook</h1>
-      <p id="user-role-label" style="font-size: 10px; color: #ccfbf1; margin-top: 2px;"></p>
+      <p id="user-role-label" style="font-size:10px;color:#ccfbf1;margin-top:3px"></p>
     </div>
     <div class="header-right">
-      <button class="btn-refresh" onclick="fetchMessages()">🔄 Muat Ulang</button>
-      <div id="timer-box">⏳ Sisa: <span id="time-left">20:00</span></div>
+      <button class="btn-refresh" id="refresh-btn" type="button">🔄 Muat ulang</button>
+      <div id="timer-box" hidden>⏳ <span id="time-left">20:00</span></div>
     </div>
   </header>
 
-  <div class="chat-container" id="chat-box">
-    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Memuat ruang konsultasi...</div>
-  </div>
+  <main class="chat-container" id="chat-box" aria-live="polite">
+    <div class="empty" id="welcome-text">Menghubungkan ke ruang konsultasi...</div>
+  </main>
+  <div id="notice" role="status">Memeriksa koneksi...</div>
 
-  <footer>
-    <label for="media-input" class="file-btn" title="Kirim Foto/Video">📎</label>
-    <input type="file" id="media-input" accept="image/*,video/*" onchange="handleMediaUpload(event)" />
-    
-    <input type="text" id="chat-input" placeholder="Ketik pesan atau konsultasi..." onkeypress="if(event.key === 'Enter') sendMessage()" />
-    <button class="send-btn" onclick="sendMessage()">Kirim</button>
-  </footer>
+  <form id="chat-form" autocomplete="off" style="display:flex;gap:8px;padding:10px 12px;background:#f9fafb;border-top:1px solid #e5e7eb;flex-shrink:0">
+    <input type="text" id="chat-input" placeholder="Tulis pesan konsultasi..." maxlength="3000" autocomplete="off" disabled>
+    <button class="send-btn" id="send-btn" type="submit" disabled>Kirim</button>
+  </form>
 
-  <script>
-    const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<script>
+(() => {
+  // Gunakan URL dan publishable/anon key Supabase milik proyek Anda.
+  // Jangan pernah memasukkan service_role key ke file HTML.
+  const SUPABASE_URL = 'https://olakgoxpurwqarxcdklr.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role') || 'client';
-    const sessionId = urlParams.get('id') || 'general-room';
-    
-    let senderName = urlParams.get('name');
-    if (!senderName) {
-      senderName = role === 'doctor' ? 'drh. Najib / Bintang' : 'Klien (Pemilik Hewan)';
-    }
+  const params = new URLSearchParams(location.search);
+  const role = params.get('role') || 'client';
+  const sessionId = params.get('id');
+  const senderName = params.get('name') ||
+    (role === 'doctor' ? 'Dokter Hewan' : 'Klien / Pemilik Hewan');
 
-    const roleLabel = document.getElementById('user-role-label');
-    const timerBox = document.getElementById('timer-box');
+  const chatBox = document.getElementById('chat-box');
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-btn');
+  const notice = document.getElementById('notice');
+  const timerBox = document.getElementById('timer-box');
+  const validRole = role === 'client' || role === 'doctor';
+  let supabaseClient = null;
+  let pollHandle = null;
+  let sending = false;
+  let lastCreatedAt = null;
+  const renderedIds = new Set();
 
-    if (role === 'client') {
-      roleLabel.innerText = `Batas Waktu Konsultasi: 20 Menit`;
-      timerBox.style.display = 'block';
-      startCountdown(20 * 60);
+  document.getElementById('user-role-label').textContent =
+    role === 'doctor' ? 'Mode dokter hewan' : 'Mode klien';
+  document.getElementById('session-title').textContent =
+    '🩺 VetBook • ' + (sessionId ? 'Booking ' + sessionId : 'Ruang Konsultasi');
+
+  function setNotice(message, isError = false) {
+    notice.textContent = message;
+    notice.classList.toggle('error', isError);
+  }
+
+  function escapeTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('id-ID', {
+      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+    });
+  }
+
+  function renderMessage(row) {
+    const id = row.id != null ? String(row.id) :
+      [row.created_at, row.sender_role, row.message_content].join('|');
+    if (renderedIds.has(id)) return;
+    renderedIds.add(id);
+
+    const welcome = document.getElementById('welcome-text');
+    if (welcome) welcome.remove();
+
+    const own = row.sender_role === role;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-wrapper ' + (own ? 'outgoing' : 'incoming');
+
+    const name = document.createElement('span');
+    name.className = 'sender-name';
+    name.textContent = (row.sender_name || (row.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien')) +
+      (row.created_at ? ' • ' + escapeTime(row.created_at) : '');
+
+    const body = document.createElement('div');
+    body.className = 'message';
+    // Gunakan textContent, bukan innerHTML, untuk mencegah injeksi HTML.
+    if (!row.message_type || row.message_type === 'text') {
+      body.textContent = row.message_content || '';
+    } else if (row.message_type === 'image' || row.message_type === 'video') {
+      // Media harus berupa URL yang dapat diakses penerima (mis. Supabase Storage).
+      const url = row.message_content || '';
+      if (!/^https:\/\/\S+$/i.test(url)) {
+        body.textContent = 'Media tidak tersedia: URL file tidak valid.';
+      } else {
+        const media = document.createElement(row.message_type === 'image' ? 'img' : 'video');
+        media.src = url;
+        media.alt = 'Media konsultasi';
+        if (row.message_type === 'video') media.controls = true;
+        media.loading = 'lazy';
+        body.appendChild(media);
+      }
     } else {
-      roleLabel.innerText = `Mode Dokter Praktisi (Akses Tidak Terbatas)`;
-      timerBox.style.display = 'none';
+      body.textContent = row.message_content || '';
     }
 
-    function startCountdown(duration) {
-      let timer = duration, minutes, seconds;
-      const display = document.getElementById('time-left');
-      const interval = setInterval(function () {
-        minutes = parseInt(timer / 60, 10);
-        seconds = parseInt(timer % 60, 10);
+    wrapper.append(name, body);
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    if (row.created_at && (!lastCreatedAt || row.created_at > lastCreatedAt)) {
+      lastCreatedAt = row.created_at;
+    }
+  }
 
-        minutes = minutes < 10 ? "0" + minutes : minutes;
-        seconds = seconds < 10 ? "0" + seconds : seconds;
+  async function fetchMessages() {
+    if (!supabaseClient || !sessionId) return;
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .select('id,session_id,sender_name,sender_role,message_content,message_type,created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
 
-        display.textContent = minutes + ":" + seconds;
-
-        if (--timer < 0) {
-          clearInterval(interval);
-          alert("Waktu konsultasi 20 menit Anda telah berakhir.");
-          document.getElementById('chat-input').disabled = true;
-          document.getElementById('media-input').disabled = true;
-        }
-      }, 1000);
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      setNotice('Gagal membaca pesan: ' + error.message +
+        '. Periksa nama kolom, izin SELECT/RLS, dan koneksi Supabase.', true);
+      return;
     }
 
-    let loadedMessageIds = new Set();
-
-    async function fetchMessages() {
-      try {
-        const { data, error } = await supabaseClient
-          .from('messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          const chatBox = document.getElementById('chat-box');
-          const welcome = document.getElementById('welcome-text');
-          if (welcome) welcome.remove();
-
-          data.forEach(msg => {
-            // Unik ID berdasarkan id database atau isi pesan+waktu
-            const uniqueKey = msg.id || (msg.created_at + msg.message_content);
-            if (!loadedMessageIds.has(uniqueKey)) {
-              loadedMessageIds.add(uniqueKey);
-              const senderType = msg.sender_role === role ? 'outgoing' : 'incoming';
-              const nameDisplay = msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien');
-              appendMessageUI(msg.message_content, nameDisplay, senderType, msg.message_type || 'text');
-            }
-          });
-        } else {
-          const chatBox = document.getElementById('chat-box');
-          if (chatBox.children.length === 0) {
-            chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Belum ada percakapan. Silakan mulai mengirim pesan.</div>';
-          }
-        }
-      } catch (err) {
-        console.error("Gagal sinkronisasi pesan:", err);
+    if (!data || data.length === 0) {
+      if (renderedIds.size === 0) {
+        chatBox.innerHTML = '<div class="empty" id="welcome-text">Belum ada pesan. Anda dapat memulai percakapan.</div>';
       }
+    } else {
+      data.forEach(renderMessage);
     }
+    setNotice('Terhubung. Pesan diperiksa otomatis setiap 2 detik.');
+  }
 
-    async function sendMessage() {
-      const input = document.getElementById('chat-input');
-      const text = input.value.trim();
-      if (!text) return;
+  async function sendMessage(event) {
+    if (event) event.preventDefault();
+    const text = input.value.trim();
+    if (!text || !supabaseClient || !sessionId || sending) return;
 
+    sending = true;
+    sendBtn.disabled = true;
+    input.disabled = true;
+
+    const payload = {
+      session_id: sessionId,
+      sender_name: senderName,
+      sender_role: role,
+      message_content: text,
+      message_type: 'text'
+    };
+
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .insert(payload)
+      .select('id,session_id,sender_name,sender_role,message_content,message_type,created_at')
+      .single();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      setNotice('Pesan GAGAL dikirim: ' + error.message +
+        '. Periksa izin INSERT/RLS dan struktur tabel messages.', true);
+      // Jangan mengosongkan input jika gagal, supaya pesan tidak hilang.
+    } else {
       input.value = '';
-      
-      // Tampilkan langsung di layar secara instan
-      appendMessageUI(text, senderName, 'outgoing', 'text');
-
-      // Simpan ke database Supabase
-      try {
-        await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_name: senderName,
-            sender_role: role,
-            message_content: text,
-            message_type: 'text'
-          }
-        ]);
-      } catch (err) {
-        console.error("Gagal kirim ke database:", err);
-      }
+      renderMessage(data);
+      setNotice('Pesan berhasil dikirim.');
     }
 
-    async function handleMediaUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+    sending = false;
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
 
-      const isVideo = file.type.startsWith('video');
-      const fileType = isVideo ? 'video' : 'image';
-      const fileUrl = URL.createObjectURL(file);
-
-      appendMessageUI(fileUrl, senderName, 'outgoing', fileType);
-
-      try {
-        await supabaseClient.from('messages').insert([
-          {
-            session_id: sessionId,
-            sender_name: senderName,
-            sender_role: role,
-            message_content: fileUrl,
-            message_type: fileType
-          }
-        ]);
-      } catch (err) {
-        console.error("Gagal kirim media ke database:", err);
+  function startClientTimer() {
+    // Timer tampilan ini dimulai saat halaman dibuka, bukan timer otoritatif server.
+    // Untuk membatasi sesi secara aman, waktu mulai/akhir harus divalidasi di server.
+    if (role !== 'client') return;
+    timerBox.hidden = false;
+    const deadline = Date.now() + 20 * 60 * 1000;
+    function tick() {
+      const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+      const ss = String(secondsLeft % 60).padStart(2, '0');
+      document.getElementById('time-left').textContent = mm + ':' + ss;
+      if (secondsLeft <= 0) {
+        input.disabled = true;
+        sendBtn.disabled = true;
+        setNotice('Timer 20 menit di perangkat ini telah berakhir. Batas waktu resmi perlu divalidasi di server.', true);
+        if (pollHandle) clearInterval(pollHandle);
+      } else {
+        setTimeout(tick, 1000);
       }
-
-      event.target.value = '';
     }
+    tick();
+  }
 
-    function appendMessageUI(content, name, senderType, type) {
-      const chatBox = document.getElementById('chat-box');
-      const welcome = document.getElementById('welcome-text');
-      if (welcome) welcome.remove();
-      
-      const wrapper = document.createElement('div');
-      wrapper.className = `message-wrapper ${senderType}`;
+  document.getElementById('chat-form').addEventListener('submit', sendMessage);
+  document.getElementById('refresh-btn').addEventListener('click', fetchMessages);
 
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'sender-name';
-      nameSpan.innerText = name;
-      wrapper.appendChild(nameSpan);
+  if (!validRole) {
+    setNotice('Parameter role tidak valid. Gunakan role=client atau role=doctor.', true);
+    return;
+  }
+  if (!sessionId || !params.get('id').trim()) {
+    setNotice('ID ruang konsultasi tidak ditemukan. Link harus menyertakan ?id=ID_BOOKING&role=client atau doctor.', true);
+    return;
+  }
+  if (!window.supabase || !window.supabase.createClient) {
+    setNotice('Library Supabase gagal dimuat. Periksa koneksi internet atau CDN.', true);
+    return;
+  }
 
-      const msgDiv = document.createElement('div');
-      msgDiv.className = 'message';
-
-      if (type === 'text') {
-        msgDiv.innerText = content;
-      } else if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = content;
-        msgDiv.appendChild(img);
-      } else if (type === 'video') {
-        const vid = document.createElement('video');
-        vid.src = content;
-        vid.controls = true;
-        msgDiv.appendChild(vid);
-      }
-
-      wrapper.appendChild(msgDiv);
-      chatBox.appendChild(wrapper);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    // Ambil pesan pertama kali, lalu cek pembaruan tiap 2 detik
-    fetchMessages();
-    setInterval(fetchMessages, 2000);
-  </script>
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  input.disabled = false;
+  sendBtn.disabled = false;
+  startClientTimer();
+  fetchMessages();
+  pollHandle = setInterval(fetchMessages, 2000);
+})();
+</script>
 </body>
-  </html>
-  
+</html>
