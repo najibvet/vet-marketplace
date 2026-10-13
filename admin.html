@@ -22,7 +22,7 @@
 
   <main class="max-w-md mx-auto p-4 space-y-4">
 
-    <!-- Ringkasan Keuangan -->
+    <!-- Ringkasan Keuangan (Sisa Saldo Bersih Dokter) -->
     <section class="space-y-3">
       <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm">
         <p class="text-[11px] font-bold text-teal-700 uppercase tracking-wider">🏢 Hak Platform (15%)</p>
@@ -31,13 +31,15 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-white p-3.5 rounded-2xl border border-blue-200 shadow-sm">
-          <p class="text-[11px] font-bold text-blue-800">👨‍⚕️ Hak drh. Najib (85%)</p>
+          <p class="text-[11px] font-bold text-blue-800">👨‍⚕️ Sisa Hak drh. Najib</p>
           <p id="total-najib" class="text-base font-extrabold text-blue-900 mt-1">Rp 0</p>
+          <p id="sub-najib" class="text-[9px] text-gray-400 mt-0.5">Penarikan: Rp 0</p>
         </div>
 
         <div class="bg-white p-3.5 rounded-2xl border border-indigo-200 shadow-sm">
-          <p class="text-[11px] font-bold text-indigo-800">👩‍⚕️ Hak drh. Bintang (85%)</p>
+          <p class="text-[11px] font-bold text-indigo-800">👩‍⚕️ Sisa Hak drh. Bintang</p>
           <p id="total-bintang" class="text-base font-extrabold text-indigo-900 mt-1">Rp 0</p>
+          <p id="sub-bintang" class="text-[9px] text-gray-400 mt-0.5">Penarikan: Rp 0</p>
         </div>
       </div>
     </section>
@@ -73,15 +75,19 @@
     const SUPABASE_KEY = 'sb_publishable_vP3YzvR4qhHuknn_VZpSVg_QBaWFgDn';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const DOCTOR_PHONE_NAJIB = '6281215667746';   // drh. Najib
-    const DOCTOR_PHONE_BINTANG = '6281230732161'; // drh. Bintang
+    const DOCTOR_PHONE_NAJIB = '6281215667746';   
+    const DOCTOR_PHONE_BINTANG = '6281230732161'; 
+
+    let globalTransactions = [];
+    let globalWithdrawals = [];
 
     async function loadDashboardData() {
       await loadWithdrawals();
       await loadTransactions();
+      updateFinancialSummary();
     }
 
-    // 1. Memuat Data Pengajuan Penarikan Dana Dokter
+    // 1. Memuat Data Penarikan
     async function loadWithdrawals() {
       const listContainer = document.getElementById('withdrawals-list');
       const countBadge = document.getElementById('withdrawal-count');
@@ -94,31 +100,37 @@
 
         if (error) throw error;
 
-        if (!wList || wList.length === 0) {
+        globalWithdrawals = wList || [];
+
+        if (globalWithdrawals.length === 0) {
           listContainer.innerHTML = `<div class="text-center py-4 text-gray-400 text-xs">Belum ada pengajuan penarikan dana.</div>`;
           countBadge.innerText = '0 Pending';
           return;
         }
 
-        const pendingCount = wList.filter(w => (w.status || 'PENDING').toUpperCase() === 'PENDING').length;
+        const pendingCount = globalWithdrawals.filter(w => (w.status || 'PENDING').toUpperCase() === 'PENDING').length;
         countBadge.innerText = `${pendingCount} Pending`;
 
-        listContainer.innerHTML = wList.map(w => {
+        listContainer.innerHTML = globalWithdrawals.map(w => {
           const status = (w.status || 'PENDING').toUpperCase();
           const isPending = status === 'PENDING';
           const amount = Number(w.amount || 0);
           const dateStr = new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
 
+          // Toleransi nama kolom di Supabase
+          const docName = w.doctor_name || w.doctor || 'Dokter';
+          const bankInfo = w.bank_details || w.bank_info || w.account_number || w.account_info || '-';
+
           return `
             <div class="p-3 rounded-xl border ${isPending ? 'border-amber-300 bg-amber-50/60' : 'border-gray-200 bg-gray-50'} space-y-1.5 text-xs">
               <div class="flex justify-between items-center">
-                <span class="font-bold text-gray-900">🩺 ${w.doctor_name || 'Dokter'}</span>
+                <span class="font-bold text-gray-900">🩺 ${docName}</span>
                 <span class="px-2 py-0.5 text-[9px] font-bold rounded-full ${isPending ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'}">
                   ${status}
                 </span>
               </div>
               <p class="text-teal-900 font-extrabold text-sm">Nominal: Rp ${amount.toLocaleString('id-ID')}</p>
-              <p class="text-gray-700 text-[11px]">🏦 Tujuan Transfer: <b>${w.bank_details || '-'}</b></p>
+              <p class="text-gray-700 text-[11px]">🏦 Tujuan Transfer: <b>${bankInfo}</b></p>
               <div class="flex justify-between items-center pt-2 border-t border-gray-200/60 text-[10px] text-gray-500">
                 <span>🕒 ${dateStr}</span>
                 ${isPending ? `
@@ -137,7 +149,7 @@
       }
     }
 
-    // 2. Konfirmasi Selesai Transfer Penarikan Dokter
+    // 2. Konfirmasi Selesai Transfer Penarikan
     async function approveWithdrawal(id) {
       if (!confirm('Apakah Anda sudah mentransfer dana ke rekening dokter dan ingin menyelesaikan pengajuan ini?')) return;
 
@@ -167,17 +179,17 @@
 
         if (error) throw error;
 
-        if (!trans || trans.length === 0) {
+        globalTransactions = trans || [];
+
+        if (globalTransactions.length === 0) {
           listContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Belum ada transaksi di database.</div>`;
           countBadge.innerText = '0 Data';
-          updateFinancialSummary([]);
           return;
         }
 
-        countBadge.innerText = `${trans.length} Data`;
-        updateFinancialSummary(trans);
+        countBadge.innerText = `${globalTransactions.length} Data`;
 
-        listContainer.innerHTML = trans.map(t => {
+        listContainer.innerHTML = globalTransactions.map(t => {
           const serviceName = t.service_detail || 'Layanan Medis';
           const clientName = t.client_name || '-';
           const clientPhone = t.client_phone || '-';
@@ -276,12 +288,14 @@
       }
     }
 
-    function updateFinancialSummary(transList) {
+    // 4. Penghitungan Ringkasan Keuangan (Pendapatan Kotor dikurangi Penarikan)
+    function updateFinancialSummary() {
       let totalPlatform = 0;
-      let totalNajib = 0;
-      let totalBintang = 0;
+      let grossNajib = 0;
+      let grossBintang = 0;
 
-      transList.forEach(t => {
+      // Hitung Pendapatan Kotor Transaksi Lunas
+      globalTransactions.forEach(t => {
         const payStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
         const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
 
@@ -294,19 +308,45 @@
 
           const serviceName = (t.service_detail || '').toLowerCase();
           if (serviceName.includes('bintang')) {
-            totalBintang += doctorShare;
+            grossBintang += doctorShare;
           } else {
-            totalNajib += doctorShare;
+            grossNajib += doctorShare;
           }
         }
       });
 
+      // Hitung Total Penarikan yang Sukses/Selesai
+      let withdrawnNajib = 0;
+      let withdrawnBintang = 0;
+
+      globalWithdrawals.forEach(w => {
+        const status = (w.status || 'PENDING').toUpperCase();
+        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'SELESAI') {
+          const amt = Number(w.amount || 0);
+          const doc = (w.doctor_name || w.doctor || '').toLowerCase();
+
+          if (doc.includes('bintang')) {
+            withdrawnBintang += amt;
+          } else {
+            withdrawnNajib += amt;
+          }
+        }
+      });
+
+      // Sisa Saldo Bersih
+      const netNajib = Math.max(0, grossNajib - withdrawnNajib);
+      const netBintang = Math.max(0, grossBintang - withdrawnBintang);
+
       document.getElementById('total-platform').innerText = `Rp ${totalPlatform.toLocaleString('id-ID')}`;
-      document.getElementById('total-najib').innerText = `Rp ${totalNajib.toLocaleString('id-ID')}`;
-      document.getElementById('total-bintang').innerText = `Rp ${totalBintang.toLocaleString('id-ID')}`;
+      document.getElementById('total-najib').innerText = `Rp ${netNajib.toLocaleString('id-ID')}`;
+      document.getElementById('total-bintang').innerText = `Rp ${netBintang.toLocaleString('id-ID')}`;
+
+      document.getElementById('sub-najib').innerText = `Tercairkan: Rp ${withdrawnNajib.toLocaleString('id-ID')}`;
+      document.getElementById('sub-bintang').innerText = `Tercairkan: Rp ${withdrawnBintang.toLocaleString('id-ID')}`;
     }
 
     loadDashboardData();
   </script>
 </body>
-</html>
+  </html>
+  
