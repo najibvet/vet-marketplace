@@ -33,13 +33,13 @@
         <div class="bg-white p-3.5 rounded-2xl border border-blue-200 shadow-sm">
           <p class="text-[11px] font-bold text-blue-800">👨‍⚕️ Sisa Hak drh. Najib</p>
           <p id="total-najib" class="text-base font-extrabold text-blue-900 mt-1">Rp 0</p>
-          <p id="sub-najib" class="text-[9px] text-gray-400 mt-0.5">Penarikan: Rp 0</p>
+          <p id="sub-najib" class="text-[9px] text-gray-400 mt-0.5">Tercairkan: Rp 0</p>
         </div>
 
         <div class="bg-white p-3.5 rounded-2xl border border-indigo-200 shadow-sm">
           <p class="text-[11px] font-bold text-indigo-800">👩‍⚕️ Sisa Hak drh. Bintang</p>
           <p id="total-bintang" class="text-base font-extrabold text-indigo-900 mt-1">Rp 0</p>
-          <p id="sub-bintang" class="text-[9px] text-gray-400 mt-0.5">Penarikan: Rp 0</p>
+          <p id="sub-bintang" class="text-[9px] text-gray-400 mt-0.5">Tercairkan: Rp 0</p>
         </div>
       </div>
     </section>
@@ -87,6 +87,13 @@
       updateFinancialSummary();
     }
 
+    // Helper: Deteksi apakah data merujuk ke drh. Bintang
+    function isDoctorBintang(obj) {
+      if (!obj) return false;
+      const combined = JSON.stringify(obj).toLowerCase();
+      return combined.includes('bintang');
+    }
+
     // 1. Memuat Data Penarikan
     async function loadWithdrawals() {
       const listContainer = document.getElementById('withdrawals-list');
@@ -117,8 +124,8 @@
           const amount = Number(w.amount || 0);
           const dateStr = new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
 
-          // Toleransi nama kolom di Supabase
-          const docName = w.doctor_name || w.doctor || 'Dokter';
+          const isBintang = isDoctorBintang(w);
+          const docName = isBintang ? 'drh. Bintang' : 'drh. Najib';
           const bankInfo = w.bank_details || w.bank_info || w.account_number || w.account_info || '-';
 
           return `
@@ -149,7 +156,7 @@
       }
     }
 
-    // 2. Konfirmasi Selesai Transfer Penarikan
+    // 2. Konfirmasi Selesai Transfer
     async function approveWithdrawal(id) {
       if (!confirm('Apakah Anda sudah mentransfer dana ke rekening dokter dan ingin menyelesaikan pengajuan ini?')) return;
 
@@ -202,14 +209,9 @@
           const platform = Math.round(total * 0.15);
           const doctor = total - platform;
 
-          let targetDoc = 'drh. Najib';
-          let docPhone = DOCTOR_PHONE_NAJIB;
-          const detailLower = serviceName.toLowerCase();
-          
-          if (detailLower.includes('bintang')) {
-            targetDoc = 'drh. Bintang';
-            docPhone = DOCTOR_PHONE_BINTANG;
-          }
+          const isBintang = isDoctorBintang(t);
+          const targetDoc = isBintang ? 'drh. Bintang' : 'drh. Najib';
+          const docPhone = isBintang ? DOCTOR_PHONE_BINTANG : DOCTOR_PHONE_NAJIB;
 
           let formattedClientPhone = clientPhone.replace(/\D/g, '');
           if (formattedClientPhone.startsWith('0')) {
@@ -288,13 +290,12 @@
       }
     }
 
-    // 4. Penghitungan Ringkasan Keuangan (Pendapatan Kotor dikurangi Penarikan)
+    // 4. Penghitungan Saldo
     function updateFinancialSummary() {
       let totalPlatform = 0;
       let grossNajib = 0;
       let grossBintang = 0;
 
-      // Hitung Pendapatan Kotor Transaksi Lunas
       globalTransactions.forEach(t => {
         const payStatus = (t.payment_status || t.status || 'PENDING').toUpperCase();
         const isLunas = payStatus === 'PAID' || payStatus === 'LUNAS' || payStatus === 'COMPLETED';
@@ -306,8 +307,7 @@
 
           totalPlatform += platform;
 
-          const serviceName = (t.service_detail || '').toLowerCase();
-          if (serviceName.includes('bintang')) {
+          if (isDoctorBintang(t)) {
             grossBintang += doctorShare;
           } else {
             grossNajib += doctorShare;
@@ -315,7 +315,6 @@
         }
       });
 
-      // Hitung Total Penarikan yang Sukses/Selesai
       let withdrawnNajib = 0;
       let withdrawnBintang = 0;
 
@@ -323,9 +322,8 @@
         const status = (w.status || 'PENDING').toUpperCase();
         if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'SELESAI') {
           const amt = Number(w.amount || 0);
-          const doc = (w.doctor_name || w.doctor || '').toLowerCase();
 
-          if (doc.includes('bintang')) {
+          if (isDoctorBintang(w)) {
             withdrawnBintang += amt;
           } else {
             withdrawnNajib += amt;
@@ -333,7 +331,6 @@
         }
       });
 
-      // Sisa Saldo Bersih
       const netNajib = Math.max(0, grossNajib - withdrawnNajib);
       const netBintang = Math.max(0, grossBintang - withdrawnBintang);
 
