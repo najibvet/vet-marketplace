@@ -91,20 +91,29 @@
 
     async function loadAdminData() {
       try {
-        let trans = [];
-        let withdrawals = [];
+        console.log("Mengambil data dari Supabase...");
+        
+        // Ambil data transaksi
+        const { data: trans, error: errTrans } = await supabaseClient.from('transactions').select('*');
+        if (errTrans) {
+          console.error("Error transactions:", errTrans);
+          document.getElementById('admin-bookings-list').innerHTML = `<p style="color: red; text-align: center; font-size: 11px;">Error DB Transaksi: ${errTrans.message}</p>`;
+        }
 
-        const resTrans = await supabaseClient.from('transactions').select('*');
-        if (!resTrans.error) trans = resTrans.data || [];
+        // Ambil data withdrawals
+        const { data: withdrawals, error: errW } = await supabaseClient.from('withdrawals').select('*');
+        if (errW) {
+          console.error("Error withdrawals:", errW);
+          document.getElementById('admin-withdrawals-list').innerHTML = `<p style="color: red; text-align: center; font-size: 11px;">Error DB Withdrawals: ${errW.message}</p>`;
+        }
 
-        const resW = await supabaseClient.from('withdrawals').select('*');
-        if (!resW.error) withdrawals = resW.data || [];
+        renderFinancialStats(trans || [], withdrawals || []);
+        if (!errW) renderWithdrawals(withdrawals || []);
+        if (!errTrans) renderBookings(trans || []);
 
-        renderFinancialStats(trans, withdrawals);
-        renderWithdrawals(withdrawals);
-        renderBookings(trans);
       } catch (err) {
-        console.error("Error loading admin data:", err);
+        console.error("Koneksi gagal:", err);
+        alert("Terjadi kesalahan koneksi ke database: " + err.message);
       }
     }
 
@@ -115,5 +124,172 @@
 
       transactions.forEach(t => {
         const payStatus = String(t.payment_status || t.status || 'PAID').toUpperCase();
-        const isLunas = payStatus.includes('PA
-    
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED') || payStatus === '';
+
+        if (isLunas) {
+          const total = Number(t.total_amount || t.amount || 0);
+          const fee = Math.round(total * 0.15);
+          platformFeeTotal += fee;
+
+          const serviceName = String(t.service_detail || t.service || '').toLowerCase();
+          const doctorShare = total - fee;
+
+          if (serviceName.includes('bintang')) {
+            bintangGross += doctorShare;
+          } else {
+            najibGross += doctorShare;
+          }
+        }
+      });
+
+      let najibWithdrawn = 0;
+      let bintangWithdrawn = 0;
+
+      withdrawals.forEach(w => {
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const docText = JSON.stringify(w).toLowerCase();
+        const amount = Number(w.amount || 0);
+
+        if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'SELESAI') {
+          if (docText.includes('bintang')) {
+            bintangWithdrawn += amount;
+          } else {
+            najibWithdrawn += amount;
+          }
+        }
+      });
+
+      const najibNet = Math.max(0, najibGross - najibWithdrawn);
+      const bintangNet = Math.max(0, bintangGross - bintangWithdrawn);
+
+      document.getElementById('platform-revenue').innerText = `Rp ${platformFeeTotal.toLocaleString('id-ID')}`;
+      document.getElementById('najib-balance').innerText = `Rp ${najibNet.toLocaleString('id-ID')}`;
+      document.getElementById('najib-withdrawn').innerText = `Tercairkan: Rp ${najibWithdrawn.toLocaleString('id-ID')}`;
+      document.getElementById('bintang-balance').innerText = `Rp ${bintangNet.toLocaleString('id-ID')}`;
+      document.getElementById('bintang-withdrawn').innerText = `Tercairkan: Rp ${bintangWithdrawn.toLocaleString('id-ID')}`;
+    }
+
+    function renderWithdrawals(wList) {
+      const container = document.getElementById('admin-withdrawals-list');
+      document.getElementById('withdrawal-count').innerText = `${wList.length} Data`;
+
+      if (wList.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada pengajuan penarikan.</p>`;
+        return;
+      }
+
+      container.innerHTML = wList.map(w => {
+        const status = String(w.status || 'PENDING').toUpperCase();
+        const isPending = status === 'PENDING';
+        const amount = Number(w.amount || 0);
+        const docName = w.vet_name || w.doctor_name || 'Dokter';
+        const bankInfo = w.bank_details || w.bank_info || '-';
+        const dateStr = w.created_at ? new Date(w.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+        return `
+          <div class="item-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>🩺 ${docName}</strong>
+              <span class="${isPending ? 'badge-pending' : 'badge-success'}">${status}</span>
+            </div>
+            <span style="color: #0f766e; font-weight: bold; font-size: 13px;">Nominal: Rp ${amount.toLocaleString('id-ID')}</span>
+            <span style="color: #4b5563;">🏦 Rek: ${bankInfo}</span>
+            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
+            ${isPending ? `<button onclick="approveWithdrawal('${w.id}')" class="btn-action">✔️ Setujui & Transfer</button>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBookings(transList) {
+      const container = document.getElementById('admin-bookings-list');
+      document.getElementById('booking-count').innerText = `${transList.length} Data`;
+
+      if (transList.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada data booking.</p>`;
+        return;
+      }
+
+      const doctorPhones = {
+        "najib": "6281215667746",
+        "bintang": "6281230732161"
+      };
+
+      const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+      const consultationUrl = baseUrl + 'consultation.html';
+
+      container.innerHTML = transList.map(t => {
+        const payStatus = String(t.payment_status || t.status || 'PENDING').toUpperCase();
+        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED');
+        const clientName = t.client_name || 'Klien';
+        
+        let rawPhone = String(t.client_phone || '').replace(/\D/g, '');
+        if (rawPhone.startsWith('0')) {
+          rawPhone = '62' + rawPhone.slice(1);
+        }
+        const clientPhone = rawPhone || '6281234567890';
+
+        const service = t.service_detail || t.service || 'Konsultasi Medis';
+        const amount = Number(t.total_amount || t.amount || 0);
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+        let doctorPhone = doctorPhones["najib"];
+        const serviceLower = service.toLowerCase();
+        if (serviceLower.includes('bintang')) {
+          doctorPhone = doctorPhones["bintang"];
+        }
+
+        const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai sesi konsultasi interaktif Anda (durasi 20 menit) melalui tautan berikut:\n\n🔗 ${consultationUrl}?role=client\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
+        const waClientUrl = `https://wa.me/${clientPhone}?text=${encodeURIComponent(msgClient)}`;
+
+        const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${t.client_phone || '-'})\n🩺 *Layanan*: ${service}\n\nSilakan buka ruang konsultasi (akses dokter tidak terbatas) melalui tautan berikut:\n🔗 ${consultationUrl}?role=doctor\n\nTerima kasih, Dok!`;
+        const waDocUrl = `https://wa.me/${doctorPhone}?text=${encodeURIComponent(msgDoc)}`;
+
+        return `
+          <div class="item-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>👤 ${clientName} (${t.client_phone || '-'})</strong>
+              <span class="${isLunas ? 'badge-success' : 'badge-pending'}">${isLunas ? 'LUNAS' : 'PENDING'}</span>
+            </div>
+            <span style="color: #1f2937; font-size: 11px;">🩺 Layanan: ${service}</span>
+            <span style="color: #1e3a8a; font-weight: bold; font-size: 13px;">Biaya: Rp ${amount.toLocaleString('id-ID')}</span>
+            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
+            
+            ${!isLunas ? 
+              `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : 
+              `<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                 <a href="${waClientUrl}" target="_blank" class="btn-wa-client">💬 Kirim Link Konsultasi (20 Menit) ke Klien (WA)</a>
+                 <a href="${waDocUrl}" target="_blank" class="btn-wa-doc">🩺 Kirim Notifikasi & Link (Akses Dokter) (WA)</a>
+               </div>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function approveWithdrawal(id) {
+      if (!confirm("Setujui pencairan dana ini?")) return;
+      const { error } = await supabaseClient.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', id);
+      if (error) {
+        alert("Gagal memperbarui status: " + error.message);
+      } else {
+        alert("Pencairan dana berhasil disetujui!");
+        loadAdminData();
+      }
+    }
+
+    async function markAsPaid(id) {
+      if (!confirm("Ubah status pembayaran booking ini menjadi LUNAS? Saldo komisi dokter akan otomatis bertambah.")) return;
+      const { error } = await supabaseClient.from('transactions').update({ payment_status: 'PAID' }).eq('id', id);
+      if (error) {
+        alert("Gagal memperbarui status pembayaran: " + error.message);
+      } else {
+        alert("Pembayaran berhasil dikonfirmasi dan dicatat sebagai Lunas!");
+        loadAdminData();
+      }
+    }
+
+    loadAdminData();
+  </script>
+</body>
+</html>
