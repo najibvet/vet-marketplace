@@ -185,7 +185,6 @@
           } else if (key === 'najib' && !serviceName.includes('bintang')) {
             gross += doctorShare;
           } else if (globalTransactions.length === 1) {
-            // Jika transaksi hanya 1 dan tidak ada keterangan nama, arahkan ke drh. Najib
             gross += doctorShare;
           }
         }
@@ -269,6 +268,8 @@
             vet_name: name,
             doctor_name: name,
             bank_details: bank,
+            bank_info: bank,
+            account_number: bank,
             amount: amount,
             status: 'PENDING'
           }
@@ -290,4 +291,5 @@
     loadDoctorWallet();
   </script>
 </body>
-</html>
+                                          </html>
+                                          
