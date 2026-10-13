@@ -94,11 +94,8 @@
 
     async function loadAdminData() {
       try {
-        const { data: trans, error: errTrans } = await supabaseClient.from('transactions').select('*');
-        if (errTrans) console.warn("Trans error:", errTrans);
-
-        const { data: withdrawals, error: errW } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
-        if (errW) console.warn("Withdrawal error:", errW);
+        const { data: trans } = await supabaseClient.from('transactions').select('*');
+        const { data: withdrawals } = await supabaseClient.from('withdrawals').select('*').order('created_at', { ascending: false });
 
         renderFinancialStats(trans || [], withdrawals || []);
         renderWithdrawals(withdrawals || []);
@@ -193,81 +190,5 @@
     }
 
     function renderBookings(transList) {
-      const container = document.getElementById('admin-bookings-list');
-      document.getElementById('booking-count').innerText = `${transList.length} Data`;
-
-      if (transList.length === 0) {
-        container.innerHTML = `<p style="text-align: center; color: #9ca3af; font-size: 12px; padding: 12px 0;">Belum ada data booking.</p>`;
-        return;
-      }
-
-      container.innerHTML = transList.map(t => {
-        const payStatus = String(t.payment_status || t.status || 'PENDING').toUpperCase();
-        const isLunas = payStatus.includes('PAID') || payStatus.includes('LUNAS') || payStatus.includes('COMPLETED');
-        const clientName = t.client_name || 'Klien';
-        const clientPhone = t.client_phone || '-';
-        const service = t.service_detail || t.service || 'Konsultasi Medis';
-        const amount = Number(t.total_amount || t.amount || 0);
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-
-        let doctorPhone = "6281234567890";
-        const serviceLower = service.toLowerCase();
-        if (serviceLower.includes('bintang')) {
-          doctorPhone = "6281234567890";
-        }
-
-        const msgClient = `Halo Kak ${clientName}, pembayaran untuk layanan *${service}* sudah kami terima dan berstatus *LUNAS*. Silakan mulai konsultasi melalui tautan berikut:\n\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih telah mempercayakan kesehatan hewan kesayangan Anda pada VetBook! 🐾`;
-        const waClientUrl = `https://wa.me/${clientPhone}?text=${encodeURIComponent(msgClient)}`;
-
-        const msgDoc = `Halo Dok, ada jadwal konsultasi baru yang sudah LUNAS:\n\n👤 *Klien*: ${clientName} (${clientPhone})\n🩺 *Layanan*: ${service}\n\nSilakan bergabung ke ruang konsultasi via link berikut:\n🔗 [Link Konsultasi / Meet / Chat]\n\nTerima kasih, Dok!`;
-        const waDocUrl = `https://wa.me/${doctorPhone}?text=${encodeURIComponent(msgDoc)}`;
-
-        return `
-          <div class="item-box">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <strong>👤 ${clientName} (${clientPhone})</strong>
-              <span class="${isLunas ? 'badge-success' : 'badge-pending'}">${isLunas ? 'LUNAS' : 'PENDING'}</span>
-            </div>
-            <span style="color: #1f2937; font-size: 11px;">🩺 Layanan: ${service}</span>
-            <span style="color: #1e3a8a; font-weight: bold; font-size: 13px;">Biaya: Rp ${amount.toLocaleString('id-ID')}</span>
-            <span style="color: #9ca3af; font-size: 10px;">🕒 ${dateStr}</span>
-            
-            ${!isLunas ? 
-              `<button onclick="markAsPaid('${t.id}')" class="btn-pay">💵 Konfirmasi Sudah Bayar (Lunas)</button>` : 
-              `<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-                 <a href="${waClientUrl}" target="_blank" class="btn-wa-client">💬 Kirim Link Konsultasi ke Klien (WA)</a>
-                 <a href="${waDocUrl}" target="_blank" class="btn-wa-doc">🩺 Kirim Notifikasi ke Dokter (WA)</a>
-               </div>`
-            }
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function approveWithdrawal(id) {
-      if (!confirm("Setujui pencairan dana ini?")) return;
-      const { error } = await supabaseClient.from('withdrawals').update({ status: 'SUCCESS' }).eq('id', id);
-      if (error) {
-        alert("Gagal memperbarui status: " + error.message);
-      } else {
-        alert("Pencairan dana berhasil disetujui!");
-        loadAdminData();
-      }
-    }
-
-    async function markAsPaid(id) {
-      if (!confirm("Ubah status pembayaran booking ini menjadi LUNAS? Saldo komisi dokter akan otomatis bertambah.")) return;
-      const { error } = await supabaseClient.from('transactions').update({ payment_status: 'PAID' }).eq('id', id);
-      if (error) {
-        alert("Gagal memperbarui status pembayaran: " + error.message);
-      } else {
-        alert("Pembayaran berhasil dikonfirmasi dan dicatat sebagai Lunas!");
-        loadAdminData();
-      }
-    }
-
-    loadAdminData();
-  </script>
-</body>
-  </html>
-  
+      const
+    
