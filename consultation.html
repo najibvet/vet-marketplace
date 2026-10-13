@@ -48,7 +48,7 @@
   </header>
 
   <div class="chat-container" id="chat-box">
-    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 10px;">Memuat ruang konsultasi...</div>
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Memuat ruang konsultasi...</div>
   </div>
 
   <footer>
@@ -65,7 +65,7 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role') || 'client'; // 'client' atau 'doctor'
+    const role = urlParams.get('role') || 'client';
     const sessionId = urlParams.get('id') || 'general-room';
     
     let senderName = urlParams.get('name');
@@ -106,7 +106,8 @@
       }, 1000);
     }
 
-    // Ambil riwayat chat dari Supabase dengan aman
+    let loadedMessageIds = new Set();
+
     async function fetchMessages() {
       try {
         const { data, error } = await supabaseClient
@@ -115,24 +116,32 @@
           .eq('session_id', sessionId)
           .order('created_at', { ascending: true });
 
-        const chatBox = document.getElementById('chat-box');
-        chatBox.innerHTML = '';
-
         if (!error && data && data.length > 0) {
+          const chatBox = document.getElementById('chat-box');
+          const welcome = document.getElementById('welcome-text');
+          if (welcome) welcome.remove();
+
           data.forEach(msg => {
-            const senderType = msg.sender_role === role ? 'outgoing' : 'incoming';
-            const nameDisplay = msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien');
-            appendMessageUI(msg.message_content, nameDisplay, senderType, msg.message_type || 'text');
+            // Unik ID berdasarkan id database atau isi pesan+waktu
+            const uniqueKey = msg.id || (msg.created_at + msg.message_content);
+            if (!loadedMessageIds.has(uniqueKey)) {
+              loadedMessageIds.add(uniqueKey);
+              const senderType = msg.sender_role === role ? 'outgoing' : 'incoming';
+              const nameDisplay = msg.sender_name || (msg.sender_role === 'doctor' ? 'Dokter Hewan' : 'Klien');
+              appendMessageUI(msg.message_content, nameDisplay, senderType, msg.message_type || 'text');
+            }
           });
         } else {
-          chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">Belum ada percakapan. Silakan mulai mengirim pesan.</div>';
+          const chatBox = document.getElementById('chat-box');
+          if (chatBox.children.length === 0) {
+            chatBox.innerHTML = '<div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;" id="welcome-text">Belum ada percakapan. Silakan mulai mengirim pesan.</div>';
+          }
         }
       } catch (err) {
-        console.error("Gagal memuat pesan:", err);
+        console.error("Gagal sinkronisasi pesan:", err);
       }
     }
 
-    // Fungsi Kirim Pesan yang Dipastikan Aman
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
@@ -140,12 +149,12 @@
 
       input.value = '';
       
-      // Tampilkan langsung ke UI lokal agar terasa sangat responsif
+      // Tampilkan langsung di layar secara instan
       appendMessageUI(text, senderName, 'outgoing', 'text');
 
+      // Simpan ke database Supabase
       try {
-        // Kirim ke database menggunakan kolom dasar yang pasti ada
-        const { error } = await supabaseClient.from('messages').insert([
+        await supabaseClient.from('messages').insert([
           {
             session_id: sessionId,
             sender_name: senderName,
@@ -154,21 +163,8 @@
             message_type: 'text'
           }
         ]);
-
-        if (error) {
-          console.error("Error insert database:", error.message);
-          // Fallback jika kolom sender_name belum ada di tabel database Anda
-          await supabaseClient.from('messages').insert([
-            {
-              session_id: sessionId,
-              sender_role: role,
-              message_content: `[${senderName}]: ${text}`,
-              message_type: 'text'
-            }
-          ]);
-        }
       } catch (err) {
-        console.error("Gagal mengirim pesan ke server:", err);
+        console.error("Gagal kirim ke database:", err);
       }
     }
 
@@ -182,25 +178,27 @@
 
       appendMessageUI(fileUrl, senderName, 'outgoing', fileType);
 
-      await supabaseClient.from('messages').insert([
-        {
-          session_id: sessionId,
-          sender_name: senderName,
-          sender_role: role,
-          message_content: fileUrl,
-          message_type: fileType
-        }
-      ]);
+      try {
+        await supabaseClient.from('messages').insert([
+          {
+            session_id: sessionId,
+            sender_name: senderName,
+            sender_role: role,
+            message_content: fileUrl,
+            message_type: fileType
+          }
+        ]);
+      } catch (err) {
+        console.error("Gagal kirim media ke database:", err);
+      }
 
       event.target.value = '';
     }
 
     function appendMessageUI(content, name, senderType, type) {
       const chatBox = document.getElementById('chat-box');
-      
-      if (chatBox.innerText.includes('Belum ada percakapan') || chatBox.innerText.includes('Memuat ruang konsultasi')) {
-        chatBox.innerHTML = '';
-      }
+      const welcome = document.getElementById('welcome-text');
+      if (welcome) welcome.remove();
       
       const wrapper = document.createElement('div');
       wrapper.className = `message-wrapper ${senderType}`;
@@ -231,10 +229,10 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Jalankan inisialisasi dan auto-refresh sinkronisasi pesan setiap 3 detik
+    // Ambil pesan pertama kali, lalu cek pembaruan tiap 2 detik
     fetchMessages();
-    setInterval(fetchMessages, 3000);
+    setInterval(fetchMessages, 2000);
   </script>
 </body>
-      </html>
-      
+  </html>
+  
